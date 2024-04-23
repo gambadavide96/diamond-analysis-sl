@@ -14,8 +14,14 @@ colnames(Diamonds)[8] = "length"
 colnames(Diamonds)[9] = "width"
 colnames(Diamonds)[10] = "depth"
 
-Diamonds$cut <- factor(Diamonds$cut)
+#Diamonds$cut <- factor(Diamonds$cut)
+
+valori_cut <- c("Fair" = 1, "Good" = 2, "Very Good" = 3,
+                "Premium" = 4, "Ideal" = 5)
+Diamonds$cut <- valori_cut[Diamonds$cut]
+
 Diamonds$color <- factor(Diamonds$color)
+
 Diamonds$clarity <- factor(Diamonds$clarity)
 
 # no nan colums
@@ -35,6 +41,9 @@ hist(Diamonds$carat, 40 ,
 
 barplot(table(Diamonds$cut), xlab = "Cut",
       ylab = "Frequency", main = "Cut distribution")
+
+hist(Diamonds$cut, xlab = "Cut",
+        ylab = "Frequency", main = "Cut distribution")
 
 barplot(table(Diamonds$color), xlab = "Color", 
       ylab = "Frequency", main = "Color Distribution")
