@@ -47,13 +47,13 @@ hist(Diamonds$depth_percentage, 50 , xlab = "Depth Percentage",
 
 hist(Diamonds$table, 40 , xlab = "Table",  main = "Table distribution")
 
-hist(Diamonds$price, 40 , xlab = "Price",  main = "Price distribution")
+hist(Diamonds$price, 40 , xlab = "Price ($)",  main = "Price distribution")
 
-hist(Diamonds$length, 40 , xlab = "Length",  main = "Length distribution")
+hist(Diamonds$length, 40 , xlab = "Length (mm)",  main = "Length distribution")
 
-hist(Diamonds$width, 50 , xlab = "Width",  main = "Width distribution")
+hist(Diamonds$width, 50 , xlab = "Width (mm)",  main = "Width distribution")
 
-hist(Diamonds$depth, 50 , xlab = "Depth",  main = "Depth distribution")
+hist(Diamonds$depth, 50 , xlab = "Depth (mm)",  main = "Depth distribution")
 
 ################################################################################
 #########################################  Univariate analysis
@@ -129,8 +129,50 @@ plot(Diamonds$clarity, Diamonds$price,
      ylab = "Price ($)")
 abline(lm(Diamonds$price ~ Diamonds$clarity, data = Diamonds), col = "red")
 
+################################################################################
+############################### Outliers
+################################################################################
+
+detect_outlier <- function(x) {
+  Quantile1 <- quantile(x, probs=.20)
+  Quantile3 <- quantile(x, probs=.80)
+  IQR = Quantile3 - Quantile1
+  x > Quantile3 + (IQR*1.5) | x < Quantile1 - (IQR*1.5)
+}
+
+remove_outlier <- function(dataframe,columns=names(dataframe)) {
+  for (col in columns) {
+    dataframe <- dataframe[!detect_outlier(dataframe[[col]]), ]
+  }
+  print("Remove outliers")
+  print(dataframe)
+}
+
+Diamonds <- remove_outlier(Diamonds, c('carat', 'depth_percentage', 'table', 'price',
+                               "length", 'width', "depth"))
 
 
+
+
+################################################################################
+############################### Standardization 
+################################################################################
+Diamonds$price <- scale(Diamonds$price)
+Diamonds$carat <- scale(Diamonds$carat)
+Diamonds$depth_percentage <- scale(Diamonds$depth_percentage)
+Diamonds$table <- scale(Diamonds$table)
+Diamonds$length <- scale(Diamonds$length)
+Diamonds$width <- scale(Diamonds$width)
+Diamonds$depth <- scale(Diamonds$depth)
+
+#check outliers
+boxplot(Diamonds)
+
+
+################################################################################
+#########################################  correlation matrix between variables
+################################################################################
+?cor
 
 
 
@@ -138,3 +180,8 @@ abline(lm(Diamonds$price ~ Diamonds$clarity, data = Diamonds), col = "red")
 #Regressione Lineare
 lm <- lm(price ~ . , data = Diamonds)
 summary(lm)
+plot(lm)
+
+plot(Diamonds$cut,subset(Diamonds, select = -cut), 
+     )
+#abline(lm(Diamonds$price ~ Diamonds$cut + Diamonds$carat+ Diamonds$clarity+ + Diamonds$depth_percentage, data = Diamonds), col = "red")
