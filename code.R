@@ -361,7 +361,7 @@ mean((ridge.pred - y[-train])^2)
 #we refit our ridge regression model on the full data set,
 #using the value of lambda chosen by cross-validation, and examine the coefficient
 #estimates.
-ridge_fit <- glmnet(x, y, alpha = 0,lambda = lambda_grid)
+ridge_fit <- glmnet(x, y, alpha = 0,lambda = lambda_grid,standardize = TRUE)
 dim(coef(ridge_fit))
 predict(ridge_fit , type = "coefficients", s = bestlam)[1:24, ]
 #Andamento dei coefficienti vs l1 norm
@@ -370,6 +370,26 @@ plot(ridge_fit)
 ################################################################################
 ############################### Lasso Regression
 ################################################################################
+
+lasso_mod <- glmnet(x[train , ], y[train], alpha = 1, lambda = lambda_grid)
+plot(lasso_mod)
+
+#We now perform cross-validation and compute the associated test error.
+set.seed(1)
+cv.out <- cv.glmnet(x[train , ], y[train], alpha = 1,nfolds = 10)
+plot(cv.out)
+bestlam <- cv.out$lambda.min
+bestlam
+lasso_pred <- predict(lasso_mod , s = bestlam , newx = x[-train , ])
+mean((lasso_pred - y[-train])^2) #Test MSE 
+
+#we refit our lasso regression model on the full data set,
+#using the value of lambda chosen by cross-validation, and examine the coefficient
+#estimates.
+lasso_fit <- glmnet(x, y, alpha = 1, lambda = lambda_grid,standardize = TRUE)
+plot(lasso_fit)
+lasso_coef <- predict(lasso_fit , type = "coefficients",  s = bestlam)[1:24, ]
+lasso_coef  #solo un regressore a 0
 
 
 
