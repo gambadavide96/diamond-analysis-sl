@@ -4,25 +4,44 @@ rm(list = ls())
 graphics.off()
 
 ################################################################################
-######################################### Setting Dataset 
+######### Modify Dataset 
 ################################################################################
+set.seed(24)
 Diamonds <- read.table("diamonds.csv", header = TRUE, 
-                       sep = ",",quote = "\"", fileEncoding = "UTF-8")
+                       sep = ",",
+                       quote = "\"",
+                       fileEncoding = "UTF-8")
 Diamonds <- subset(Diamonds , select = - X)
 colnames(Diamonds)[5] = "depth_percentage"
 colnames(Diamonds)[8] = "length"
 colnames(Diamonds)[9] = "width"
 colnames(Diamonds)[10] = "depth"
 
-#Diamonds$cut <- factor(Diamonds$cut)
+####shuffling####
+Diamonds <- Diamonds[sample(nrow(Diamonds)), ]
 
-valori_cut <- c("Fair" = 1, "Good" = 2, "Very Good" = 3,
-                "Premium" = 4, "Ideal" = 5)
-Diamonds$cut <- valori_cut[Diamonds$cut]
+####shuffling####
+indexes <- sample(seq_len(nrow(Diamonds)))
+Diamonds <- Diamonds[indexes,]
+####
 
-Diamonds$color <- factor(Diamonds$color)
+################################################################################
+######### Setting Dataset 
+################################################################################
+Diamonds <- read.table("diamonds.csv", header = TRUE, 
+                       sep = ",",
+                       quote = "\"",
+                       fileEncoding = "UTF-8")
 
-Diamonds$clarity <- factor(Diamonds$clarity)
+### Transform Categorical Variables as factors
+Diamonds$cut <- factor(Diamonds$cut,
+                levels = c("Fair", "Good", "Very Good", "Premium", "Ideal"))
+
+Diamonds$color <- factor(Diamonds$color,
+                  levels = c("J", "I", "H", "G", "F","E","D"))
+
+Diamonds$clarity <- factor(Diamonds$clarity,
+              levels=c("I1", "SI2", "SI1", "VS2", "VS1", "VVS2", "VVS1", "IF"))
 
 # no nan colums
 colSums(is.na(Diamonds))
@@ -31,27 +50,32 @@ View(Diamonds)
 summary(Diamonds)
 
 ################################################################################
-#########################################  Histograms
+######### Histograms 
 ################################################################################
 
 par(mfrow = c(2,2))
 
 hist(Diamonds$carat, 40 , 
-     xlab = "Carat",  main = "Carat distribution") 
+     xlab = "Carat",  
+     main = "Carat distribution") 
 
-barplot(table(Diamonds$cut), xlab = "Cut",
-      ylab = "Frequency", main = "Cut distribution")
+barplot(table(Diamonds$cut),
+      xlab = "Cut",
+      ylab = "Frequency", 
+      main = "Cut distribution")
 
-hist(Diamonds$cut, xlab = "Cut",
-        ylab = "Frequency", main = "Cut distribution")
+barplot(table(Diamonds$color), 
+      xlab = "Color", 
+      ylab = "Frequency", 
+      main = "Color Distribution")
 
-barplot(table(Diamonds$color), xlab = "Color", 
-      ylab = "Frequency", main = "Color Distribution")
+barplot(table(Diamonds$clarity), 
+      xlab = "Clarity",
+      ylab = "Frequency",
+      main = "Clarity Distribution")
 
-barplot(table(Diamonds$clarity), xlab = "Clarity",
-      ylab = "Frequency",main = "Clarity Distribution")
-
-hist(Diamonds$depth_percentage, 50 , xlab = "Depth Percentage", 
+hist(Diamonds$depth_percentage, 50 ,
+      xlab = "Depth Percentage", 
       main = "Depth Percentage distribution")
 
 hist(Diamonds$table, 40 , xlab = "Table",  main = "Table distribution")
@@ -139,12 +163,12 @@ plot(Diamonds$clarity, Diamonds$price,
 abline(lm(Diamonds$price ~ Diamonds$clarity, data = Diamonds), col = "red")
 
 ################################################################################
-############################### Outliers
+######### Outliers ?????
 ################################################################################
 
 detect_outlier <- function(x) {
-  Quantile1 <- quantile(x, probs=.20)
-  Quantile3 <- quantile(x, probs=.80)
+  Quantile1 <- quantile(x, probs=.25)
+  Quantile3 <- quantile(x, probs=.75)
   IQR = Quantile3 - Quantile1
   x > Quantile3 + (IQR*1.5) | x < Quantile1 - (IQR*1.5)
 }
@@ -164,8 +188,12 @@ Diamonds <- remove_outlier(Diamonds, c('carat', 'depth_percentage', 'table', 'pr
 
 
 ################################################################################
-############################### Standardization 
+######### Standardization ????
 ################################################################################
+
+library(dplyr)
+
+
 Diamonds$price <- scale(Diamonds$price)
 Diamonds$carat <- scale(Diamonds$carat)
 Diamonds$depth_percentage <- scale(Diamonds$depth_percentage)
@@ -174,23 +202,177 @@ Diamonds$length <- scale(Diamonds$length)
 Diamonds$width <- scale(Diamonds$width)
 Diamonds$depth <- scale(Diamonds$depth)
 
-#check outliers
-boxplot(Diamonds)
+Diamonds <- Diamonds %>%
+  mutate_at(vars(price, carat, depth_percentage, table, length, width, depth), scale)
+
+#check outliers (before do standardization)
+boxplot(Diamonds)$out
 
 
 ################################################################################
-#########################################  correlation matrix between variables
+######### Correlation matrix between variables ????
 ################################################################################
-?cor
+
+#library(ggplot2)
+#library(GGally)
+#library(corrplot)
+
+cor_scores <- cor(subset(Diamonds , select = -c(color,clarity,cut)))
+corrplot(cor_scores,method = "number")
+
+#Crea un grafico di dispersione (scatterplot matrix) insieme a istogrammi per
+#ciascuna variabile nel dataset.
+ggpairs(Diamonds)
+
+################################################################################
+######### Linear Regression
+################################################################################
+
+#The contrasts() function returns the coding that R uses for the dummy variables.
+contrasts(Diamonds$cut)
+contrasts(Diamonds$color)
+contrasts(Diamonds$clarity)
+
+lm_fit = lm(price ~ . , data = Diamonds)
+summary(lm_fit)
+
+#R^2
+summary(lm_fit)$r.sq 
+#RSE #quantifica la deviazione media dei valori osservati dai valori previsti dal
+#modello di regressione.
+summary(lm_fit)$sigma 
+#MSE
+mean((Diamonds$price - lm_fit$fitted.values)^2)
+#MSE
+mean((lm_fit$residuals)^2) 
+
+par(mfrow = c(2,2))
+plot(lm_fit)
+
+
+###### Analisi dei Residui ######
+par(mfrow = c(1,1))
+
+# frequenza dei residui
+hist(lm_fit$residuals,60,
+     xlab = "Residual",
+     main = "Empirical residual distribution")
+
+#Index vs Residuals
+plot(lm_fit$residuals,ylab = "Residuals",pch = "o",
+      cex = 1, col = "black",
+      main = paste0("Residual plot - mean:",round(mean(lm_fit$residuals),
+      digits = 4),"- var:", round(var(lm_fit$residuals),digits = 2)))
+abline(c(0,0),c(0,length(lm_fit$residuals)), col= "red", lwd = 2)
+
+#Fitted value vs Residuals
+plot(lm_fit$fitted.values,lm_fit$residuals,xlab = "Fitted values",
+     ylab = "Residuals",pch = "o",
+     cex = 1, col = "black",
+     main = "Fitted Values vs Residuals")
+abline(c(0,0),c(0,length(lm_fit$residuals)), col= "red", lwd = 2)
+
+#Grafico residui studentizzati
+plot(rstudent(lm_fit),ylab = "Studentized residuals",
+     cex = 1, col = "black")
+abline(a=0,b=0,lwd=2,col="red")
+
+###### Normality and heteroschdaschity ######
+shapiro.test(lm_fit$residuals[1:5000])
+bptest(lm_fit)
+
+################################################################################
+######### Validation 70-30 ????
+################################################################################
+
+set.seed(1) # seed for random number generator
+
+#train and test indexes
+train <- sample(nrow(Diamonds),floor(nrow(Diamonds)*0.7),replace = FALSE)
+#train model
+lm_fit_train <- lm(price ~ . , data = Diamonds, subset = train)
+summary(lm_fit_train)
+mean((lm_fit_train$residuals)^2) #Train MSE
+#test MSE
+pred_err = (Diamonds$price- predict(lm_fit_train,Diamonds))^2
+train_mse = mean(pred_err[train]) 
+test_mse = mean(pred_err[-train])
+#using predict() function ???
+
+
+################################################################################
+############################### K-fold; k = 10
+################################################################################
+set.seed(1) # seed for random number generator
+library(boot)
+
+#Linear regression
+glm_fit <- glm(price ~ . , data = Diamonds)
+summary(glm_fit)
+
+#Cross-validation for Generalized Linear Models: cv.glm K = 10
+cv_err <- cv.glm(Diamonds , glm_fit, K = 10)
+#K-fold test error
+kfold_test_err <- cv_err$delta[1]
+
+################################################################################
+############################### Bootstrap ??
+################################################################################
+
+
+
+################################################################################
+############################### Subset selection methods
+################################################################################
+
+###### Best subset method ######
 
 
 
 
-#Regressione Lineare
-lm <- lm(price ~ . , data = Diamonds)
-summary(lm)
-plot(lm)
+################################################################################
+############################### Ridge Regression
+################################################################################
 
-plot(Diamonds$cut,subset(Diamonds, select = -cut), 
-     )
-#abline(lm(Diamonds$price ~ Diamonds$cut + Diamonds$carat+ Diamonds$clarity+ + Diamonds$depth_percentage, data = Diamonds), col = "red")
+#preparing data
+#creating regressor (automatic handle categorical variables in dummy variables)
+x <- model.matrix ( price ~ . , Diamonds )[,-1] #tutte le righe - la prima colonna (intercetta)
+y <- Diamonds$price
+#lambda_grid
+lambda_grid <- 10^seq(10,-2,length = 100) #generates 100 lambdas
+
+ridge.mod <- glmnet(x[train , ], y[train], alpha = 0, 
+                    lambda = lambda_grid, thresh = 1e-12)
+
+####### Choosing the best lambda #######
+set.seed(1)
+#train and test indexes
+train <- sample(nrow(Diamonds),floor(nrow(Diamonds)*0.7),replace = FALSE)
+
+cv.out <- cv.glmnet(x[train , ], y[train], alpha = 0)
+plot(cv.out)
+bestlam <- cv.out$lambda.min
+bestlam
+
+#What is the test MSE associated with this value of lambda?
+ridge.pred <- predict(ridge.mod , s = bestlam ,newx = x[-train , ])
+mean((ridge.pred - y[-train])^2)
+
+#we refit our ridge regression model on the full data set,
+#using the value of lambda chosen by cross-validation, and examine the coefficient
+#estimates.
+ridge_fit <- glmnet(x, y, alpha = 0,lambda = lambda_grid)
+dim(coef(ridge_fit))
+predict(ridge_fit , type = "coefficients", s = bestlam)[1:24, ]
+#Andamento dei coefficienti vs l1 norm
+plot(ridge_fit)
+
+################################################################################
+############################### Lasso Regression
+################################################################################
+
+
+
+
+
+
