@@ -225,6 +225,13 @@ corrplot(cor_scores,method = "number")
 ggpairs(Diamonds)
 
 ################################################################################
+######### Splittung Dataset in train e test
+################################################################################
+
+#train and test indexes
+train <- sample(nrow(Diamonds),floor(nrow(Diamonds)*0.7),replace = FALSE)
+
+################################################################################
 ######### Linear Regression
 ################################################################################
 
@@ -285,10 +292,6 @@ bptest(lm_fit)
 ######### Validation 70-30 ????
 ################################################################################
 
-set.seed(1) # seed for random number generator
-
-#train and test indexes
-train <- sample(nrow(Diamonds),floor(nrow(Diamonds)*0.7),replace = FALSE)
 #train model
 lm_fit_train <- lm(price ~ . , data = Diamonds, subset = train)
 summary(lm_fit_train)
@@ -345,9 +348,6 @@ ridge.mod <- glmnet(x[train , ], y[train], alpha = 0,
                     lambda = lambda_grid, thresh = 1e-12)
 
 ####### Choosing the best lambda #######
-set.seed(1)
-#train and test indexes
-train <- sample(nrow(Diamonds),floor(nrow(Diamonds)*0.7),replace = FALSE)
 
 cv.out <- cv.glmnet(x[train , ], y[train], alpha = 0)
 plot(cv.out)
@@ -390,6 +390,47 @@ lasso_fit <- glmnet(x, y, alpha = 1, lambda = lambda_grid,standardize = TRUE)
 plot(lasso_fit)
 lasso_coef <- predict(lasso_fit , type = "coefficients",  s = bestlam)[1:24, ]
 lasso_coef  #solo un regressore a 0
+
+################################################################################
+############################### GAM
+################################################################################
+
+## carat -> natural spline
+## cut -> step function
+## color -> step function  
+## clarity -> step function 
+## depth_percentage -> smoothing spline
+## table -> smoothing spline 
+## lenght -> natural spline 
+## width -> natural spline 
+## depth -> natural spline
+## price -> output variable
+
+####### GAM on full Dataset #######
+gam_model_1 <- gam(price~ ns(carat,4) + cut + color + clarity +
+                   s(depth_percentage,5) + s(table,5) + ns(length,4) + 
+                   ns(width,4) +ns(depth,4), data=Diamonds)
+
+plot(gam_model_1, se = TRUE)
+summary(gam_model_1)
+MSE_gam_model_1 <- mean((gam_model_1$residuals)^2) #MSE
+
+plot(gam_model_1$residuals)
+plot(Diamonds$price,gam_model_1$fitted.values)
+plot(gam_model_1$fitted.values,gam_model_1$residuals)
+plot(Diamonds$price,gam_model_1$residuals)
+
+####### GAM train and test #######
+gam_model_train <- gam(price~ ns(carat,4) + cut + color + clarity +
+                     s(depth_percentage,5) + s(table,5) + ns(length,4) + 
+                     ns(width,4) +ns(depth,4), data=Diamonds[train, ])
+
+plot(gam_model_train,se=TRUE)
+
+gam_pred_value <- predict(gam_model_train,newdata = Diamonds[-train,])
+plot(Diamonds$price[-train],gam_pred_value)
+plot(Diamonds$price[-train] - gam_pred_value)
+mean((Diamonds$price[-train] - gam_pred_value)^2)
 
 
 
