@@ -230,6 +230,7 @@ ggpairs(Diamonds)
 
 #train and test indexes
 train <- sample(nrow(Diamonds),floor(nrow(Diamonds)*0.7),replace = FALSE)
+price_test <- Diamonds$price[-train]
 
 ################################################################################
 ######### Linear Regression
@@ -431,6 +432,183 @@ gam_pred_value <- predict(gam_model_train,newdata = Diamonds[-train,])
 plot(Diamonds$price[-train],gam_pred_value)
 plot(Diamonds$price[-train] - gam_pred_value)
 mean((Diamonds$price[-train] - gam_pred_value)^2)
+
+################################################################################
+############################### Regression Trees
+################################################################################
+library(tree)
+
+####### Tree on full dataset ######
+tree_model_1 <- tree(price ~ . , data = Diamonds)
+summary(tree_model_1)
+plot(tree_model_1)
+text(tree_model_1 , pretty = 0)
+##If we just type the name of the tree object, R prints output corresponding
+#to each branch of the tree. R displays the split criterion ,
+#the number of observations in that branch, the deviance, the overall prediction
+#for the branch, and the fraction of observations in that
+#branch that take on values of Yes and No. Branches that lead to terminal
+#nodes are indicated using asterisks
+tree_model_1
+
+####### Test MSE ######
+set.seed(2)
+tree_model_2 <- tree(price ~ ., data = Diamonds, subset = train)
+summary(tree_model_2)
+plot(tree_model_2)
+text(tree_model_2 , pretty = 0)
+
+yhat_tree_2 <- predict(tree_model_2 , newdata = Diamonds[-train,]) #predizioni
+plot(yhat_tree_2 , price_test) #Previsioni vs dati reali
+mean((yhat_tree_2 - price_test)^2) #Test MSE
+
+####### Pruning ######
+
+#The function
+#cv.tree() performs cross-validation in order to determine the optimal level of 
+#tree complexity; cost complexity pruning is used in order to select a 
+#sequence of trees for consideration.
+cv_tree <- cv.tree(tree_model_2)
+#The cv.tree() function reports the number of terminal nodes of each tree considered
+#(size) as well as the corresponding error rate and the value of the
+#cost-complexity parameter used (k, which corresponds to aplha )
+##dev corresponds to the number of cross-validation errors.
+cv_tree  #(Valori molto alti!)
+plot(cv_tree$size , cv_tree$dev, type = "b")
+plot(cv_tree$k , cv_tree$dev, type = "b")
+
+#prendo la size con errore minore
+best = min(cv_tree$size[cv_tree$dev == min(cv_tree$dev)])
+#prendo la k con errore minore
+k = min(cv_tree$k[cv_tree$dev == min(cv_tree$dev)]) #alpha in the book
+
+#prune the tree
+prune_model <- prune.tree(tree_model_2 , best = best)
+plot(prune_model)
+text(prune_model , pretty = 0)
+#Oss: l'albero di pruning ha gli stessi terminal node dell'albero unpruned!!
+#Quindi il miglior albero è quello senza pruning
+
+##### Test MSE on the best sub-tree #####
+yhat_prune <- predict(prune_model , newdata = Diamonds[-train , ]) #Predizioni
+plot(yhat_prune, price_test) #Previsioni vs dati reali
+mean((yhat_prune - price_test)^2) #Test MSE
+
+################################################################################
+############################### Bagging
+################################################################################
+
+# Train and test 
+train<- sample(nrow(Diamonds),floor(nrow(Diamonds)*0.5),replace = FALSE)
+price_test <- Diamonds$price[-train]
+
+library(randomForest)
+set.seed(1)
+#### Bagging on full Dataset ####
+bag_model_1 <- randomForest(price ~ ., data = Diamonds , 
+                           mtry = ncol(Diamonds)-1, 
+                           importance = TRUE,
+                           replace=TRUE,
+                           ntree=2) ##Occhio valore di tree
+
+bag_model_1
+summary(bag_model_1)
+plot(bag_model_1)
+importance(bag_model_1)
+
+#### Test MSE Bagging ####
+bag_model_2 <- randomForest(price ~ ., data = Diamonds , subset = train, 
+                            mtry = ncol(Diamonds)-1, 
+                            importance = TRUE,
+                            replace=TRUE,
+                            ntree=100)
+bag_model_2
+summary(bag_model_2)
+plot(bag_model_2)
+importance(bag_model_2)
+
+yhat_bag_2 <- predict(bag_model_2 , newdata = Diamonds[-train , ])
+plot(yhat_bag_2 ,price_test)
+mean((yhat_bag_2 - price_test)^2) #Test MSE 
+
+################################################################################
+############################### Random Forest
+################################################################################
+
+#### Test MSE ####
+rf_model_1 <- randomForest(price ~ ., data = Diamonds , subset = train, 
+                            mtry = floor(sqrt(ncol(Diamonds)-1)), 
+                            importance = TRUE,
+                            replace=TRUE,
+                            ntree=100)
+
+rf_model_1
+summary(rf_model_1)
+plot(rf_model_1)
+importance(rf_model_1)
+
+yhat_rf <- predict(rf_model_1 , newdata = Diamonds[-train , ])
+plot(yhat_rf ,price_test)
+mean((yhat_rf - price_test)^2) #Test MSE 
+
+#### Confronto Bagging e Random Forest ####
+plot(rf_model_1,type = 'b',col="green",pch = "+")
+par(new=TRUE) #per sovrapporre grafico
+plot(bag_model_2,type = 'b',col="red",pch='o')
+
+
+################################################################################
+############################### Boosting
+################################################################################
+
+# Train and test 
+train<- sample(nrow(Diamonds),floor(nrow(Diamonds)*0.7),replace = FALSE)
+price_test <- Diamonds$price[-train]
+
+library(gbm)
+set.seed(1)
+
+#### Test MSE ####
+
+boost_model_1 <- gbm(price ~ ., data = Diamonds[train , ],
+                    distribution = "gaussian", 
+                    n.trees = 5000,
+                    interaction.depth = 4)
+summary(boost_model_1)
+
+#We see that carat and width are by far the most important variables.
+
+#We can also produce partial dependence plots for these two variables. These plots
+#illustrate the marginal effect of the selected variables on the response after
+#integrating out the other variables. In this case, as we might expect, the price
+#are increasing with both variables.
+plot(boost_model_1 , i = "carat")
+plot(boost_model_1 , i = "width")
+
+
+yhat_boost_1 <- predict(boost_model_1 , newdata = Diamonds[-train , ], 
+                      n.trees = 5000)
+boost_MSE_1 <- mean((yhat_boost_1 - price_test)^2)
+
+##If we want to, we can perform boosting with a different
+#value of the shrinkage parameter lambda in (8.10). The default value is 0.001,
+#but this is easily modified. Here we take lambda = 0.2.
+boost_model_2 <- gbm(price ~ ., data = Diamonds[train , ],
+                     distribution = "gaussian", 
+                     n.trees = 5000,
+                     interaction.depth = 4,
+                     shrinkage = 0.02,
+                     verbose=F)
+
+summary(boost_model_2)
+plot(boost_model_2 , i = "carat")
+plot(boost_model_2 , i = "width")
+
+yhat_boost_2 <- predict(boost_model_2 , newdata = Diamonds[-train , ], 
+                        n.trees = 5000)
+boost_MSE_2 <- mean((yhat_boost_2 - price_test)^2)
+
+
 
 
 
