@@ -290,7 +290,7 @@ shapiro.test(lm_fit$residuals[1:5000])
 bptest(lm_fit)
 
 ################################################################################
-######### Validation 70-30 ????
+######### Validation 70-30 
 ################################################################################
 
 #train model
@@ -302,7 +302,10 @@ pred_err = (Diamonds$price- predict(lm_fit_train,Diamonds))^2
 train_mse = mean(pred_err[train]) 
 test_mse = mean(pred_err[-train])
 #using predict() function ???
+y_hat_lm = predict(lm_fit_train,newdata = Diamonds[-train,])
+lm_MSE_1 = mean((y_hat_lm - Diamonds$price[-train])^2)
 
+#Corretti entrambi i metodi
 
 ################################################################################
 ############################### K-fold; k = 10
@@ -337,6 +340,7 @@ kfold_test_err <- cv_err$delta[1]
 ################################################################################
 ############################### Ridge Regression
 ################################################################################
+library(glmnet)
 
 #preparing data
 #creating regressor (automatic handle categorical variables in dummy variables)
@@ -395,6 +399,8 @@ lasso_coef  #solo un regressore a 0
 ################################################################################
 ############################### GAM
 ################################################################################
+
+library(gam)
 
 ## carat -> natural spline
 ## cut -> step function
