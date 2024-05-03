@@ -46,6 +46,9 @@ Diamonds$clarity <- factor(Diamonds$clarity,
 # no nan colums
 colSums(is.na(Diamonds))
 
+#cut price
+Diamonds <- subset(Diamonds, price  >= 500 & price <= 1000)
+
 View(Diamonds)
 summary(Diamonds)
 
@@ -89,6 +92,52 @@ hist(Diamonds$width, 50 , xlab = "Width (mm)",  main = "Width distribution")
 hist(Diamonds$depth, 50 , xlab = "Depth (mm)",  main = "Depth distribution")
 
 ################################################################################
+######### Outliers ?????
+################################################################################
+
+detect_outlier <- function(x) {
+  Quantile1 <- quantile(x, probs=.25)
+  Quantile3 <- quantile(x, probs=.75)
+  IQR = Quantile3 - Quantile1
+  x > Quantile3 + (IQR*1.5) | x < Quantile1 - (IQR*1.5)
+}
+
+remove_outlier <- function(dataframe,columns=names(dataframe)) {
+  for (col in columns) {
+    dataframe <- dataframe[!detect_outlier(dataframe[[col]]), ]
+  }
+  print("Remove outliers")
+  print(dataframe)
+}
+
+Diamonds <- remove_outlier(Diamonds, c('carat', 'depth_percentage', 'table', 'price',
+                                       "length", 'width', "depth"))
+
+################################################################################
+######### Correlation matrix between variables 
+################################################################################
+
+#library(ggplot2)
+#library(GGally)
+library(corrplot)
+
+par(mfrow = c(1,1))
+
+cor_scores <- cor(subset(Diamonds , select = -c(color,clarity,cut)))
+corrplot(cor_scores,method = "number")
+
+#Crea un grafico di dispersione (scatterplot matrix) insieme a istogrammi per
+#ciascuna variabile nel dataset.
+ggpairs(Diamonds)
+
+################################################################################
+#########################################  Remove depth percentage
+################################################################################
+
+Diamonds <- subset(Diamonds , select = -depth_percentage)
+
+
+################################################################################
 #########################################  Univariate analysis
 ################################################################################
 
@@ -102,14 +151,6 @@ plot(Diamonds$carat, Diamonds$price,
      xlab = "Carat", 
      ylab = "Price ($)")
 abline(lm(Diamonds$price ~ Diamonds$carat, data = Diamonds), col = "red")
-
-summary(lm(Diamonds$price ~ Diamonds$depth_percentage, data = Diamonds))
-plot(Diamonds$depth_percentage, Diamonds$price, 
-     main = "Depth percentage vs Price", 
-     xlab = "Depth percentage", 
-     ylab = "Price ($)")
-abline(lm(Diamonds$price ~ Diamonds$depth_percentage, 
-      data = Diamonds), col = "red")
 
 summary(lm(Diamonds$price ~ Diamonds$table, data = Diamonds))
 plot(Diamonds$table, Diamonds$price, 
@@ -125,6 +166,13 @@ plot(Diamonds$length, Diamonds$price,
      ylab = "Price ($)")
 abline(lm(Diamonds$price ~ Diamonds$length, data = Diamonds), col = "red")
 
+summary(lm(Diamonds$price ~ Diamonds$depth, data = Diamonds))
+plot(Diamonds$depth, Diamonds$price, 
+     main = "Depth vs Price", 
+     xlab = "Depth (mm)", 
+     ylab = "Price ($)")
+abline(lm(Diamonds$price ~ Diamonds$depth, data = Diamonds), col = "red")
+
 summary(lm(Diamonds$price ~ Diamonds$width, data = Diamonds))
 plot(Diamonds$width, Diamonds$price, 
      main = "Width vs Price", 
@@ -132,12 +180,10 @@ plot(Diamonds$width, Diamonds$price,
      ylab = "Price ($)")
 abline(lm(Diamonds$price ~ Diamonds$width, data = Diamonds), col = "red")
 
-summary(lm(Diamonds$price ~ Diamonds$depth, data = Diamonds))
-plot(Diamonds$depth, Diamonds$price, 
-     main = "Depth vs Price", 
-     xlab = "Depth (mm)", 
+plot(Diamonds$depth_percentage, Diamonds$price, 
+     main = "Depth percentage vs Price", 
+     xlab = "Depth percentage", 
      ylab = "Price ($)")
-abline(lm(Diamonds$price ~ Diamonds$depth, data = Diamonds), col = "red")
 
 #Categorical Variables
 
@@ -161,30 +207,6 @@ plot(Diamonds$clarity, Diamonds$price,
      xlab = "Clarity", 
      ylab = "Price ($)")
 abline(lm(Diamonds$price ~ Diamonds$clarity, data = Diamonds), col = "red")
-
-################################################################################
-######### Outliers ?????
-################################################################################
-
-detect_outlier <- function(x) {
-  Quantile1 <- quantile(x, probs=.25)
-  Quantile3 <- quantile(x, probs=.75)
-  IQR = Quantile3 - Quantile1
-  x > Quantile3 + (IQR*1.5) | x < Quantile1 - (IQR*1.5)
-}
-
-remove_outlier <- function(dataframe,columns=names(dataframe)) {
-  for (col in columns) {
-    dataframe <- dataframe[!detect_outlier(dataframe[[col]]), ]
-  }
-  print("Remove outliers")
-  print(dataframe)
-}
-
-Diamonds <- remove_outlier(Diamonds, c('carat', 'depth_percentage', 'table', 'price',
-                               "length", 'width', "depth"))
-
-
 
 
 ################################################################################
@@ -215,7 +237,9 @@ boxplot(Diamonds)$out
 
 #library(ggplot2)
 #library(GGally)
-#library(corrplot)
+library(corrplot)
+
+par(mfrow = c(1,1))
 
 cor_scores <- cor(subset(Diamonds , select = -c(color,clarity,cut)))
 corrplot(cor_scores,method = "number")
@@ -225,7 +249,7 @@ corrplot(cor_scores,method = "number")
 ggpairs(Diamonds)
 
 ################################################################################
-######### Splittung Dataset in train e test
+######### Splitting Dataset in train e test
 ################################################################################
 
 #train and test indexes
@@ -241,71 +265,61 @@ contrasts(Diamonds$cut)
 contrasts(Diamonds$color)
 contrasts(Diamonds$clarity)
 
-lm_fit = lm(price ~ . , data = Diamonds)
-summary(lm_fit)
-
+#Train model
+lm_model_1 = lm(price ~ . , data = Diamonds,subset = train)
+summary(lm_model_1)
 #R^2
-summary(lm_fit)$r.sq 
+summary(lm_model_1)$r.sq 
 #RSE #quantifica la deviazione media dei valori osservati dai valori previsti dal
 #modello di regressione.
-summary(lm_fit)$sigma 
-#MSE
-mean((Diamonds$price - lm_fit$fitted.values)^2)
-#MSE
-mean((lm_fit$residuals)^2) 
+summary(lm_model_1)$sigma 
+#Train MSE
+lm_train_MSE = mean((Diamonds$price - lm_model_1$fitted.values)^2)
+#Train MSE
+mean((lm_model_1$residuals)^2) 
 
-par(mfrow = c(2,2))
-plot(lm_fit)
+#test MSE
+pred_err = (Diamonds$price- predict(lm_model_1,Diamonds))^2
+train_mse = mean(pred_err[train]) 
+test_mse = mean(pred_err[-train])
+#using predict() function 
+y_hat_lm = predict(lm_model_1,newdata = Diamonds[-train,])
+lm_MSE_1 = mean((y_hat_lm - Diamonds$price[-train])^2)
 
 
 ###### Analisi dei Residui ######
 par(mfrow = c(1,1))
 
+plot(lm_model_1)
+
 # frequenza dei residui
-hist(lm_fit$residuals,60,
+hist(lm_model_1$residuals,60,
      xlab = "Residual",
      main = "Empirical residual distribution")
 
 #Index vs Residuals
-plot(lm_fit$residuals,ylab = "Residuals",pch = "o",
+plot(lm_model_1$residuals,ylab = "Residuals",pch = "o",
       cex = 1, col = "black",
-      main = paste0("Residual plot - mean:",round(mean(lm_fit$residuals),
-      digits = 4),"- var:", round(var(lm_fit$residuals),digits = 2)))
+      main = paste0("Residual plot - mean:",round(mean(lm_model_1$residuals),
+      digits = 4),"- var:", round(var(lm_model_1$residuals),digits = 2)))
 abline(c(0,0),c(0,length(lm_fit$residuals)), col= "red", lwd = 2)
 
 #Fitted value vs Residuals
-plot(lm_fit$fitted.values,lm_fit$residuals,xlab = "Fitted values",
+plot(lm_model_1$fitted.values,lm_model_1$residuals,xlab = "Fitted values",
      ylab = "Residuals",pch = "o",
      cex = 1, col = "black",
      main = "Fitted Values vs Residuals")
-abline(c(0,0),c(0,length(lm_fit$residuals)), col= "red", lwd = 2)
+abline(c(0,0),c(0,length(lm_model_1$residuals)), col= "red", lwd = 2)
 
 #Grafico residui studentizzati
-plot(rstudent(lm_fit),ylab = "Studentized residuals",
+plot(rstudent(lm_model_1),ylab = "Studentized residuals",
      cex = 1, col = "black")
 abline(a=0,b=0,lwd=2,col="red")
 
 ###### Normality and heteroschdaschity ######
-shapiro.test(lm_fit$residuals[1:5000])
+shapiro.test(lm_model_1$residuals[1:5000])
 bptest(lm_fit)
 
-################################################################################
-######### Validation 70-30 
-################################################################################
-
-#train model
-lm_fit_train <- lm(price ~ . , data = Diamonds, subset = train)
-summary(lm_fit_train)
-mean((lm_fit_train$residuals)^2) #Train MSE
-#test MSE
-pred_err = (Diamonds$price- predict(lm_fit_train,Diamonds))^2
-train_mse = mean(pred_err[train]) 
-test_mse = mean(pred_err[-train])
-#using predict() function ???
-y_hat_lm = predict(lm_fit_train,newdata = Diamonds[-train,])
-lm_MSE_1 = mean((y_hat_lm - Diamonds$price[-train])^2)
-
-#Corretti entrambi i metodi
 
 ################################################################################
 ############################### K-fold; k = 10
@@ -353,7 +367,6 @@ ridge.mod <- glmnet(x[train , ], y[train], alpha = 0,
                     lambda = lambda_grid, thresh = 1e-12)
 
 ####### Choosing the best lambda #######
-
 cv.out <- cv.glmnet(x[train , ], y[train], alpha = 0)
 plot(cv.out)
 bestlam <- cv.out$lambda.min
