@@ -335,7 +335,7 @@ shapiro.test(lm_model_1$residuals[1:5000])
 bptest(lm_fit)
 
 ##### Model with interaction terms #####
-lm_model_2 = lm(price ~ . + (length * width * depth) , data = Diamonds,
+lm_model_2 = lm(price ~ . + (length:width:depth) , data = Diamonds,
                 subset = train)
 summary(lm_model_2)
 
@@ -393,7 +393,7 @@ abline(a=0,b=0,lwd=1.5,col="red")
 anova(lm_model_1,lm_model_2)
 #The anova() function performs a hypothesis test comparing the two models. The null hypothesis 
 #is that the two models fit the data equally well, and the alternative hypothesis is that the full
-#model is superior. Here the F-statistic is 853 and the associated p-value is
+#model is superior. Here the F-statistic is 576 and the associated p-value is
 #virtually zero. This provides very clear evidence that the model containing
 #the interaction term is better
 
@@ -414,7 +414,7 @@ library(glmnet)
 
 #preparing data
 #creating regressor (automatic handle categorical variables in dummy variables)
-x <- model.matrix ( price ~ . +(length * width * depth) , 
+x <- model.matrix ( price ~ . +(length : width : depth) , 
                     Diamonds )[,-1]  #tutte le righe - la prima colonna (intercetta)
 y <- Diamonds$price
 
@@ -528,19 +528,36 @@ test_RMSE_lasso
 #prezzo)
 
 ################################################################################
-############################### K-fold; k = 10
+############################### Polynomials functions + K-fold; k = 10
 ################################################################################
+
 set.seed(1) # seed for random number generator
 library(boot)
 
-#Linear regression
-glm_fit <- glm(price ~ ., data = Diamonds)
-summary(glm_fit)
+kfold_RMSE <- rep (0 , 6)
 
-#Cross-validation for Generalized Linear Models: cv.glm K = 10
-cv_err <- cv.glm(Diamonds , glm_fit, K = 10)
-#K-fold test error
-kfold_test_err <- cv_err$delta[1]
+for(i in 1:6) {
+  k_fit <- glm(price ~ poly(length,i) + poly(width,i) + 
+               poly(depth,i) + poly(table,i) + poly(depth_percentage,i)
+               +carat + color + cut + clarity
+               +poly(width*length*depth,i),
+               data = Diamonds ) #creo il modello di ordine i
+  kfold_RMSE[ i ] <- sqrt(cv.glm( Diamonds , k_fit , K = 10)$delta[1]) #prendo il test RMSE per quel modello
+}
+
+summary(k_fit)
+kfold_RMSE
+
+plot(1:6,kfold_RMSE,type = "b",col = "blue",
+     ylab = "CV error",
+     xlab = "Flexibility (poly degree)",
+     main = "Test error estimation")
+
+#Si nota come ci sia un netto miglioramento passando dalla funzione lineare 
+#quadratica, per le successive il miglioramento è costante ma ridotto fino al 
+#polinomio di grado 5 da li in poi il comportamento è imprevedibile
+
+
 
 
 ################################################################################
