@@ -447,14 +447,14 @@ dim(coef(ridge_model_1))
 #Seleziono lambda 5 (grande) e calcolo l2 norm per lambda 5 (piccola)
 ridge_model_1$lambda[5]
 coef(ridge_model_1)[, 5]
-sqrt(sum(coef(ridge_model_1)[-1,5]^2)) ##l2 norm (escludendo intercetta)
+sqrt(sum(coef(ridge_model_1)[-1,5]^2)) ##l1 norm (escludendo intercetta)
 
 #Seleziono lambda 95(piccolo) e calcolo l2 norm per lambda 95 (grande)
 ridge_model_1$lambda[95]
 coef(ridge_model_1)[, 95]
-sqrt(sum(coef(ridge_model_1)[-1,95]^2)) #l2 norm (escludendo intercetta)
+sqrt(sum(coef(ridge_model_1)[-1,95]^2)) #l1 norm (escludendo intercetta)
 
-### Andamento dei coefficienti al variare di lambda e l2 norm ###
+### Andamento dei coefficienti al variare di lambda e l1 norm ###
 plot(ridge_model_1, xvar = "lambda",xlab="Log(λ)",
      main="Coefficients vs Log(λ) ")
 plot(ridge_model_1, xvar = "norm",xlab="l1 norm",
@@ -475,7 +475,7 @@ ridge_model_2 <- glmnet(x[train , ], y[train], alpha = 0,
                         standardize = TRUE)
 
 #Beta del modello trovato per il miglior lambda
-predict(ridge_model_2 ,type = "coefficients")[1:20, ]
+coef(ridge_model_2)
 
 fitt_value_ridge <- predict(ridge_model_2,newx = x[-train,])
 test_RMSE_ridge = sqrt(mean((y[-train] - fitt_value_ridge)^2))
@@ -488,25 +488,41 @@ test_RMSE_ridge
 ############################### Lasso Regression
 ################################################################################
 
-lasso_mod <- glmnet(x[train , ], y[train], alpha = 1, lambda = lambda_grid)
-plot(lasso_mod)
+lambda_grid <- 10^seq(-3,3,length = 100);
 
-#We now perform cross-validation and compute the associated test error.
-set.seed(1)
-cv.out <- cv.glmnet(x[train , ], y[train], alpha = 1,nfolds = 10)
-plot(cv.out)
-bestlam <- cv.out$lambda.min
-bestlam
-lasso_pred <- predict(lasso_mod , s = bestlam , newx = x[-train , ])
-mean((lasso_pred - y[-train])^2) #Test MSE 
 
-#we refit our lasso regression model on the full data set,
-#using the value of lambda chosen by cross-validation, and examine the coefficient
-#estimates.
-lasso_fit <- glmnet(x, y, alpha = 1, lambda = lambda_grid,standardize = TRUE)
-plot(lasso_fit)
-lasso_coef <- predict(lasso_fit , type = "coefficients",  s = bestlam)[1:24, ]
-lasso_coef  #solo un regressore a 0
+lasso_model_1 <- glmnet(x[train , ], y[train], alpha = 1, 
+                        lambda = lambda_grid, 
+                        standardize = TRUE)
+dim(coef(lasso_model_1))
+
+#Esempi di valori di lambda
+#Seleziono lambda 5 (grande) e calcolo l2 norm per lambda 5 (piccola)
+lasso_model_1$lambda[5]
+coef(lasso_model_1)[, 5]
+sqrt(sum(coef(lasso_model_1)[-1,5]^2)) ##l1 norm (escludendo intercetta)
+
+#Seleziono lambda 95(piccolo) e calcolo l2 norm per lambda 95 (grande)
+lasso_model_1$lambda[95]
+coef(lasso_model_1)[, 95]
+sqrt(sum(coef(lasso_model_1)[-1,95]^2)) #l1 norm (escludendo intercetta)
+
+### Andamento dei coefficienti al variare di lambda e l1 norm ###
+plot(lasso_model_1, xvar = "lambda",xlab="Log(λ)",
+     main="Coefficients vs Log(λ) ")
+plot(lasso_model_1, xvar = "norm",xlab="l1 norm",
+     main="Coefficients vs l1 norm") #? mi da un errore strano
+
+####### Choosing the best lambda #######
+cv_lasso_out <- cv.glmnet(x[train , ], y[train], alpha = 1,
+                          lambda = lambda_grid,
+                          nfolds = 10)
+
+plot(cv_lasso_out)
+bestlam_lasso <- cv_lasso_out$lambda.min
+bestlam_lasso #0.001 come ridge
+
+### Test RMSE ###
 
 ################################################################################
 ############################### GAM
