@@ -347,7 +347,7 @@ lm_train_RMSE_2 = sqrt(mean((lm_model_2$residuals)^2))
 lm_train_RMSE_2
 
 #Test RMSE 
-y_hat_lm_2 = predict(lm_model_2,newdata = Diamonds[-train,])
+fitt_value_lm_2 = predict(lm_model_2,newdata = Diamonds[-train,])
 lm_test_RMSE_2 = sqrt(mean((y_hat_lm_2 - Diamonds$price[-train])^2))
 lm_test_RMSE_2
 
@@ -389,6 +389,8 @@ abline(a=0,b=0,lwd=1.5,col="red")
 #o tra larghezza e profondità, influisce sul valore del diamante in modo diverso 
 #rispetto alla larghezza o alla lunghezza da sole.
 
+## Anova test per confrontare i due modelli di regressione lineare creati ##
+
 
 ################################################################################
 ############################### K-fold; k = 10
@@ -422,32 +424,65 @@ library(glmnet)
 
 #preparing data
 #creating regressor (automatic handle categorical variables in dummy variables)
-x <- model.matrix ( price ~ . , Diamonds )[,-1] #tutte le righe - la prima colonna (intercetta)
+x <- model.matrix ( price ~ . +(length * width * depth) , 
+                    Diamonds )[,-1]  #tutte le righe - la prima colonna (intercetta)
 y <- Diamonds$price
-#lambda_grid
-lambda_grid <- 10^seq(10,-2,length = 100) #generates 100 lambdas
 
-ridge.mod <- glmnet(x[train , ], y[train], alpha = 0, 
-                    lambda = lambda_grid, thresh = 1e-12)
+#here we have chosen to implement
+#the function over a grid of values ranging from lamba = 10^5 to lambda = 10^-2, 
+#essentially covering the full range of scenarios from the null model containing
+#only the intercept, to the least squares fit
+#lambda_grid
+lambda_grid <- 10^seq(-3,7,length = 100); #generating 100 lambdas
+
+#Note that by default, the glmnet() function standardizes the
+#variables so that they are on the same scale. To turn off this default setting,
+#use the argument standardize = FALSE
+ridge_model_1 <- glmnet(x[train , ], y[train], alpha = 0, 
+                    lambda = lambda_grid, 
+                    standardize = TRUE)
+dim(coef(ridge_model_1))
+
+#Esempi di valori di lambda
+#Seleziono lambda 5 (grande) e calcolo l2 norm per lambda 5 (piccola)
+ridge_model_1$lambda[5]
+coef(ridge_model_1)[, 5]
+sqrt(sum(coef(ridge_model_1)[-1,5]^2)) ##l2 norm (escludendo intercetta)
+
+#Seleziono lambda 95(piccolo) e calcolo l2 norm per lambda 95 (grande)
+ridge_model_1$lambda[95]
+coef(ridge_model_1)[, 95]
+sqrt(sum(coef(ridge_model_1)[-1,95]^2)) #l2 norm (escludendo intercetta)
+
+### Andamento dei coefficienti al variare di lambda e l2 norm ###
+plot(ridge_model_1, xvar = "lambda",xlab="Log(λ)",
+     main="Coefficients vs Log(λ) ")
+plot(ridge_model_1, xvar = "norm",xlab="l1 norm",
+     main="Coefficients vs l1 norm")
 
 ####### Choosing the best lambda #######
-cv.out <- cv.glmnet(x[train , ], y[train], alpha = 0)
-plot(cv.out)
-bestlam <- cv.out$lambda.min
-bestlam
+cv_ridge_out <- cv.glmnet(x[train , ], y[train], alpha = 0,
+                          lambda = lambda_grid,
+                          nfolds = 10)
+plot(cv_ridge_out)
+bestlam_ridge <- cv_ridge_out$lambda.min
+bestlam_ridge #0.001 quindi bassa penalizzazione 
+# (idealmente il modello non ne metterebbe nessuna probabilmente)
 
-#What is the test MSE associated with this value of lambda?
-ridge.pred <- predict(ridge.mod , s = bestlam ,newx = x[-train , ])
-mean((ridge.pred - y[-train])^2)
+### Test RMSE ###
+ridge_model_2 <- glmnet(x[train , ], y[train], alpha = 0, 
+                        lambda = bestlam_ridge, 
+                        standardize = TRUE)
 
-#we refit our ridge regression model on the full data set,
-#using the value of lambda chosen by cross-validation, and examine the coefficient
-#estimates.
-ridge_fit <- glmnet(x, y, alpha = 0,lambda = lambda_grid,standardize = TRUE)
-dim(coef(ridge_fit))
-predict(ridge_fit , type = "coefficients", s = bestlam)[1:24, ]
-#Andamento dei coefficienti vs l1 norm
-plot(ridge_fit)
+#Beta del modello trovato per il miglior lambda
+predict(ridge_model_2 ,type = "coefficients")[1:20, ]
+
+fitt_value_ridge <- predict(ridge_model_2,newx = x[-train,])
+test_RMSE_ridge = sqrt(mean((y[-train] - fitt_value_ridge)^2))
+test_RMSE_ridge
+#Il modello è peggiorato un po rispetto a lm, probabilmente perchè tutte 
+#le variabili sono significative e danno un contributo nel predirre il prezzo
+
 
 ################################################################################
 ############################### Lasso Regression
