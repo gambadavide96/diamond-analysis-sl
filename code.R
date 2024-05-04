@@ -348,7 +348,7 @@ lm_train_RMSE_2
 
 #Test RMSE 
 fitt_value_lm_2 = predict(lm_model_2,newdata = Diamonds[-train,])
-lm_test_RMSE_2 = sqrt(mean((y_hat_lm_2 - Diamonds$price[-train])^2))
+lm_test_RMSE_2 = sqrt(mean((fitt_value_lm_2 - Diamonds$price[-train])^2))
 lm_test_RMSE_2
 
 ### Analisi dei Residui ###
@@ -390,22 +390,12 @@ abline(a=0,b=0,lwd=1.5,col="red")
 #rispetto alla larghezza o alla lunghezza da sole.
 
 ## Anova test per confrontare i due modelli di regressione lineare creati ##
-
-
-################################################################################
-############################### K-fold; k = 10
-################################################################################
-set.seed(1) # seed for random number generator
-library(boot)
-
-#Linear regression
-glm_fit <- glm(price ~ ., data = Diamonds)
-summary(glm_fit)
-
-#Cross-validation for Generalized Linear Models: cv.glm K = 10
-cv_err <- cv.glm(Diamonds , glm_fit, K = 10)
-#K-fold test error
-kfold_test_err <- cv_err$delta[1]
+anova(lm_model_1,lm_model_2)
+#The anova() function performs a hypothesis test comparing the two models. The null hypothesis 
+#is that the two models fit the data equally well, and the alternative hypothesis is that the full
+#model is superior. Here the F-statistic is 853 and the associated p-value is
+#virtually zero. This provides very clear evidence that the model containing
+#the interaction term is better
 
 
 ################################################################################
@@ -522,8 +512,7 @@ plot(cv_lasso_out)
 bestlam_lasso <- cv_lasso_out$lambda.min
 bestlam_lasso #0.001 come ridge
 
-### Test RMSE ###
-
+### Final model e Test RMSE ###
 lasso_model_2 <- glmnet(x[train , ], y[train], alpha = 1, 
                         lambda = bestlam_lasso, 
                         standardize = TRUE)
@@ -537,6 +526,22 @@ test_RMSE_lasso
 #Risultati molto simili alla regressione ridge e lineare normale, siccome
 #il modello non penalizza i coefficienti grandi (necessari per spiegare il
 #prezzo)
+
+################################################################################
+############################### K-fold; k = 10
+################################################################################
+set.seed(1) # seed for random number generator
+library(boot)
+
+#Linear regression
+glm_fit <- glm(price ~ ., data = Diamonds)
+summary(glm_fit)
+
+#Cross-validation for Generalized Linear Models: cv.glm K = 10
+cv_err <- cv.glm(Diamonds , glm_fit, K = 10)
+#K-fold test error
+kfold_test_err <- cv_err$delta[1]
+
 
 ################################################################################
 ############################### GAM
