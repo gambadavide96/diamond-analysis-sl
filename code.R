@@ -511,7 +511,7 @@ sqrt(sum(coef(lasso_model_1)[-1,95]^2)) #l1 norm (escludendo intercetta)
 plot(lasso_model_1, xvar = "lambda",xlab="Log(λ)",
      main="Coefficients vs Log(λ) ")
 plot(lasso_model_1, xvar = "norm",xlab="l1 norm",
-     main="Coefficients vs l1 norm") #? mi da un errore strano
+     main="Coefficients vs l1 norm") 
 
 ####### Choosing the best lambda #######
 cv_lasso_out <- cv.glmnet(x[train , ], y[train], alpha = 1,
@@ -523,6 +523,20 @@ bestlam_lasso <- cv_lasso_out$lambda.min
 bestlam_lasso #0.001 come ridge
 
 ### Test RMSE ###
+
+lasso_model_2 <- glmnet(x[train , ], y[train], alpha = 1, 
+                        lambda = bestlam_lasso, 
+                        standardize = TRUE)
+
+#Beta del modello trovato per il miglior lambda
+coef(lasso_model_2)
+
+fitt_value_lasso <- predict(lasso_model_2,newx = x[-train,])
+test_RMSE_lasso = sqrt(mean((y[-train] - fitt_value_lasso)^2))
+test_RMSE_lasso
+#Risultati molto simili alla regressione ridge e lineare normale, siccome
+#il modello non penalizza i coefficienti grandi (necessari per spiegare il
+#prezzo)
 
 ################################################################################
 ############################### GAM
