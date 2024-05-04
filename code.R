@@ -280,6 +280,7 @@ test_rmse = sqrt(mean(pred_err[-train]))
 #using predict() function 
 y_hat_lm = predict(lm_model_1,newdata = Diamonds[-train,])
 lm_test_RMSE_1 = sqrt(mean((y_hat_lm - Diamonds$price[-train])^2))
+lm_test_RMSE_1
 
 
 ###### Analisi dei Residui ######
@@ -334,9 +335,60 @@ shapiro.test(lm_model_1$residuals[1:5000])
 bptest(lm_fit)
 
 ##### Model with interaction terms #####
+lm_model_2 = lm(price ~ . + (length * width * depth) , data = Diamonds,
+                subset = train)
+summary(lm_model_2)
 
-#Train model
-lm_model_1 = lm(price ~ . , data = Diamonds,subset = train)
+#confidence interval 95%
+confint(lm_model_2)
+
+#Train RMSE
+lm_train_RMSE_2 = sqrt(mean((lm_model_2$residuals)^2))
+lm_train_RMSE_2
+
+#Test RMSE 
+y_hat_lm_2 = predict(lm_model_2,newdata = Diamonds[-train,])
+lm_test_RMSE_2 = sqrt(mean((y_hat_lm_2 - Diamonds$price[-train])^2))
+lm_test_RMSE_2
+
+### Analisi dei Residui ###
+par(mfrow = c(2,2))
+
+#Grafici diagnostici
+plot(lm_model_2)
+
+par(mfrow = c(1,1))
+
+# frequenza dei residui studentizzati
+hist(rstudent(lm_model_2),60,
+     xlab = "Studentized residuals",
+     main = "Empirical residual distribution")
+
+#Fitted values vs Residuals
+plot(lm_model_2$fitted.values,lm_model_2$residuals,
+     xlab = "Fitted values",
+     ylab = "Residuals",
+     main = "Fitted values vs Residuals",
+     cex = 1.5, col = "black")
+abline(a=0,b=0,lwd=1.5,col="red")
+
+#Fitted Value vs Studentized Residuals
+plot(lm_model_2$fitted.values,rstudent(lm_model_2),
+     xlab = "Fitted values",
+     ylab = "Studentized residuals",
+     main = "Fitted values vs Studentized residuals",
+     cex = 1.5, col = "black")
+abline(a=0,b=0,lwd=1.5,col="red")
+
+#Per modellare gli effetti sinergici sul prezzo che hanno le dimensioni del diamante,
+#inseriamo nel modello un interaction term sulle dimensioni del diamante
+
+#Nel caso dei diamanti, potrebbe essere plausibile che la combinazione di larghezza,
+#lunghezza e profondità abbia un effetto complessivo sulla percezione del valore (prezzo) del diamante. 
+#Potrebbe esserci un effetto sinergico in cui un certo rapporto tra larghezza e lunghezza, 
+#o tra larghezza e profondità, influisce sul valore del diamante in modo diverso 
+#rispetto alla larghezza o alla lunghezza da sole.
+
 
 ################################################################################
 ############################### K-fold; k = 10
@@ -345,18 +397,13 @@ set.seed(1) # seed for random number generator
 library(boot)
 
 #Linear regression
-glm_fit <- glm(price ~ . , data = Diamonds)
+glm_fit <- glm(price ~ ., data = Diamonds)
 summary(glm_fit)
 
 #Cross-validation for Generalized Linear Models: cv.glm K = 10
 cv_err <- cv.glm(Diamonds , glm_fit, K = 10)
 #K-fold test error
 kfold_test_err <- cv_err$delta[1]
-
-################################################################################
-############################### Bootstrap ??
-################################################################################
-
 
 
 ################################################################################
