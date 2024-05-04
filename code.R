@@ -46,8 +46,6 @@ Diamonds$clarity <- factor(Diamonds$clarity,
 # no nan colums
 colSums(is.na(Diamonds))
 
-#cut price
-Diamonds <- subset(Diamonds, price  >= 500 & price <= 1000)
 
 View(Diamonds)
 summary(Diamonds)
@@ -92,7 +90,7 @@ hist(Diamonds$width, 50 , xlab = "Width (mm)",  main = "Width distribution")
 hist(Diamonds$depth, 50 , xlab = "Depth (mm)",  main = "Depth distribution")
 
 ################################################################################
-######### Outliers ?????
+######### Outliers 
 ################################################################################
 
 detect_outlier <- function(x) {
@@ -114,6 +112,30 @@ Diamonds <- remove_outlier(Diamonds, c('carat', 'depth_percentage', 'table', 'pr
                                        "length", 'width', "depth"))
 
 ################################################################################
+######### Mean e Std dataset variable
+################################################################################
+
+# Carica il pacchetto dplyr
+library(dplyr)
+
+# Seleziona solo le colonne numeriche
+numeric_cols <- Diamonds %>% select(where(is.numeric))
+
+# Calcola la media di ciascuna variabile numerica
+means <- colMeans(numeric_cols)
+
+# Calcola la deviazione standard di ciascuna variabile numerica
+std_devs <- apply(numeric_cols, 2, sd)
+
+# Combina i risultati in un dataframe
+summary_stats <- data.frame(mean = means, std_dev = std_devs)
+
+# Visualizza il dataframe con le medie e le deviazioni standard
+View(summary_stats)
+
+
+
+################################################################################
 ######### Correlation matrix between variables 
 ################################################################################
 
@@ -125,16 +147,6 @@ par(mfrow = c(1,1))
 
 cor_scores <- cor(subset(Diamonds , select = -c(color,clarity,cut)))
 corrplot(cor_scores,method = "number")
-
-#Crea un grafico di dispersione (scatterplot matrix) insieme a istogrammi per
-#ciascuna variabile nel dataset.
-ggpairs(Diamonds)
-
-################################################################################
-#########################################  Remove depth percentage
-################################################################################
-
-Diamonds <- subset(Diamonds , select = -depth_percentage)
 
 
 ################################################################################
@@ -230,24 +242,6 @@ Diamonds <- Diamonds %>%
 #check outliers (before do standardization)
 boxplot(Diamonds)$out
 
-
-################################################################################
-######### Correlation matrix between variables ????
-################################################################################
-
-#library(ggplot2)
-#library(GGally)
-library(corrplot)
-
-par(mfrow = c(1,1))
-
-cor_scores <- cor(subset(Diamonds , select = -c(color,clarity,cut)))
-corrplot(cor_scores,method = "number")
-
-#Crea un grafico di dispersione (scatterplot matrix) insieme a istogrammi per
-#ciascuna variabile nel dataset.
-ggpairs(Diamonds)
-
 ################################################################################
 ######### Splitting Dataset in train e test
 ################################################################################
@@ -268,58 +262,81 @@ contrasts(Diamonds$clarity)
 #Train model
 lm_model_1 = lm(price ~ . , data = Diamonds,subset = train)
 summary(lm_model_1)
+#confidence interval 95%
+confint(lm_model_1)
 #R^2
 summary(lm_model_1)$r.sq 
-#RSE #quantifica la deviazione media dei valori osservati dai valori previsti dal
-#modello di regressione.
-summary(lm_model_1)$sigma 
-#Train MSE
-lm_train_MSE = mean((Diamonds$price - lm_model_1$fitted.values)^2)
-#Train MSE
-mean((lm_model_1$residuals)^2) 
+#Train RMSE
+lm_train_RMSE = sqrt(mean((Diamonds$price[train] - lm_model_1$fitted.values)^2))
+lm_train_RMSE
+#Train RMSE
+lm_train_RMSE = sqrt(mean((lm_model_1$residuals)^2))
+lm_train_RMSE
 
-#test MSE
+#test RMSE
 pred_err = (Diamonds$price- predict(lm_model_1,Diamonds))^2
-train_mse = mean(pred_err[train]) 
-test_mse = mean(pred_err[-train])
+train_rmse = sqrt(mean(pred_err[train])) 
+test_rmse = sqrt(mean(pred_err[-train]))
 #using predict() function 
 y_hat_lm = predict(lm_model_1,newdata = Diamonds[-train,])
-lm_MSE_1 = mean((y_hat_lm - Diamonds$price[-train])^2)
+lm_test_RMSE_1 = sqrt(mean((y_hat_lm - Diamonds$price[-train])^2))
 
 
 ###### Analisi dei Residui ######
 par(mfrow = c(1,1))
-
+#Grafici diagnostici
 plot(lm_model_1)
 
-# frequenza dei residui
-hist(lm_model_1$residuals,60,
-     xlab = "Residual",
+# frequenza dei residui studentizzati
+hist(rstudent(lm_model_1),60,
+     xlab = "Studentized residuals",
      main = "Empirical residual distribution")
 
-#Index vs Residuals
-plot(lm_model_1$residuals,ylab = "Residuals",pch = "o",
-      cex = 1, col = "black",
-      main = paste0("Residual plot - mean:",round(mean(lm_model_1$residuals),
-      digits = 4),"- var:", round(var(lm_model_1$residuals),digits = 2)))
-abline(c(0,0),c(0,length(lm_fit$residuals)), col= "red", lwd = 2)
+#Fitted values vs Residuals
+plot(lm_model_1$fitted.values,lm_model_1$residuals,
+     xlab = "Fitted values",
+     ylab = "Residuals",
+     main = "Fitted values vs Residuals",
+     cex = 1.5, col = "black")
+abline(a=0,b=0,lwd=1.5,col="red")
 
-#Fitted value vs Residuals
-plot(lm_model_1$fitted.values,lm_model_1$residuals,xlab = "Fitted values",
-     ylab = "Residuals",pch = "o",
-     cex = 1, col = "black",
-     main = "Fitted Values vs Residuals")
-abline(c(0,0),c(0,length(lm_model_1$residuals)), col= "red", lwd = 2)
+#Questo grafico viene utilizzato per valutare se esiste una relazione sistematica
+#tra i valori predetti e i residui.  In particolare, si cerca di verificare se 
+#i residui mostrano una distribuzione casuale intorno allo zero al variare 
+#dei valori predetti. Se i residui mostrano una struttura sistematica, potrebbe 
+#indicare che il modello non è adeguato  e che potrebbero essere necessarie 
+#trasformazioni aggiuntive o l'uso di modelli più complessi.
 
-#Grafico residui studentizzati
-plot(rstudent(lm_model_1),ylab = "Studentized residuals",
-     cex = 1, col = "black")
-abline(a=0,b=0,lwd=2,col="red")
+#Fitted Value vs Studentized Residuals
+plot(lm_model_1$fitted.values,rstudent(lm_model_1),
+     xlab = "Fitted values",
+     ylab = "Studentized residuals",
+     main = "Fitted values vs Studentized residuals",
+     cex = 1.5, col = "black")
+abline(a=0,b=0,lwd=1.5,col="red")
 
-###### Normality and heteroschdaschity ######
+#I residui studentizzati sono i residui divisi per la deviazione standard stimata 
+#del residuo.
+#Questo serve a rendere i residui comparabili tra loro e identificare eventuali
+#osservazioni influenti o outlier.Se un residuo studentizzato ha  un valore assoluto 
+#maggiore di 2 o 3, potrebbe indicare che quell'osservazione ha un impatto 
+#significativo sul modello   potrebbe essere considerato un outlier 
+#o un'osservazione influente.
+
+#In sintesi, mentre i residui standardizzati dividono i residui per la deviazione 
+#standard dei residui, i residui studentizzati li dividono per la deviazione standard 
+#stimata dei residui, che è una stima più accurata della variabilità residua nel modello. 
+#Entrambi sono utilizzati per identificare osservazioni anomale o influenti nel modello.
+
+
+###### Test sui residui ######
 shapiro.test(lm_model_1$residuals[1:5000])
 bptest(lm_fit)
 
+##### Model with interaction terms #####
+
+#Train model
+lm_model_1 = lm(price ~ . , data = Diamonds,subset = train)
 
 ################################################################################
 ############################### K-fold; k = 10
