@@ -780,6 +780,8 @@ yhat_boost_2 <- predict(boost_model_2 , newdata = Diamonds[-train , ],
 boost_RMSE_2 <- sqrt(mean((yhat_boost_2 - price_test)^2))
 boost_RMSE_2
 #Risultato migliore
+#In media i valori predetti dal modello sono deviati di circa 379 dollari 
+#rispetto ai valori osservati.
 
 
 
