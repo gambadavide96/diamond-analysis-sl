@@ -321,7 +321,7 @@ abline(a=0,b=0,lwd=1.5,col="red")
 #indicare che il modello non è adeguato  e che potrebbero essere necessarie 
 #trasformazioni aggiuntive o l'uso di modelli più complessi.
 
-#Fitted Value vs Studentized Residuals
+#Fitted Values vs Studentized Residuals
 plot(lm_model_1$fitted.values,rstudent(lm_model_1),
      xlab = "Fitted values",
      ylab = "Studentized residuals",
@@ -419,9 +419,57 @@ anova(lm_model_1,lm_model_2, test='F')
 ################################################################################
 ############################### Subset selection methods
 ################################################################################
+library(leaps)
+###### Best subset selection ######
+model_bwd <- regsubsets(price ~ .+ (length:width:depth), data = Diamonds[train,], 
+                         nvmax = 24)
 
-###### Best subset method ######
+names(summary(model_bwd)) #tutte le statistiche fornite
 
+##Test RMSE Validation approach
+
+#We now compute the validation set error for the best
+#model of each model size. We first make a model matrix from the test
+#data.
+#The model.matrix() function is used in many regression packages for building 
+#an “X” matrix from data.
+test_mat <- model.matrix(price ~ . + (length:width:depth), 
+                         data = Diamonds[-train , ])
+
+#Now we run a loop, and for each size i, we
+#extract the coefficients from regfit.best for the best model of that size,
+#multiply them into the appropriate columns of the test model matrix to
+#form the predictions, and compute the test MSE.
+val_RMSE <- rep(NA, 24)
+for (i in 1:24) {
+  coefi <- coef(model_bwd , id = i)
+  pred <- test_mat[, names(coefi)] %*% coefi #prodotto matrici coefficienti per la previsione di price
+  val_RMSE[i] <- sqrt(mean((Diamonds$price[-train] - pred)^2))
+}
+#Supponiamo che test_mat sia una matrice e coefi sia un vettore contenente i nomi 
+#delle colonne che si desidera selezionare da test_mat. L'espressione test_mat[, names(coefi)] 
+#restituirà una sotto-matrice di test_mat che contiene solo le colonne il cui 
+#nome corrisponde ai valori contenuti in coefi. (cioè prende i valori di test
+#da moltiplicare per i regressori selezionati nell'iterazione i-esima )
+
+val_RMSE #Test RMSE per tutti i modelli calcolati
+
+#We find that the best model is the one that contains  variables.
+min_RMSE = which.min(val_RMSE)
+coef(model_bwd , min_RMSE)
+#Nel miglior modello sono stati eliminati 3 regressori dal totale:
+#Sono state eliminate table,depth_percentage e length
+#Coerente con la regressione lineare, ha eliminato i regressori con il
+#p-value più alto
+
+#R^2 e modello con R^2 più alto in grafico
+summary(model_bwd)$rsq
+plot(summary(model_bwd)$rsq,xlab = "N° regressor",ylab = "R^2")
+max_r2 <- which.max(summary(model_bwd)$rsq)
+points(max_r2, summary(model_bwd)$rsq[max_r2], col = "red", cex = 2, pch = 20)
+#Modello con test RMSE più basso
+plot(val_RMSE,xlab = "N° regressor",ylab = " Test RMSE")
+points(min_RMSE, val_RMSE[min_RMSE], col = "blue", cex = 2, pch = 20)
 
 
 
@@ -547,7 +595,7 @@ test_RMSE_lasso
 #prezzo)
 
 ################################################################################
-############################### Polynomials functions + K-fold; k = 10
+############################### Polynomials functions + K-fold Cross Validation; k = 10
 ################################################################################
 
 set.seed(1) # seed for random number generator
