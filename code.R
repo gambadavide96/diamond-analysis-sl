@@ -107,7 +107,7 @@ hist(Diamonds$depth_percentage, 50 ,
 
 hist(Diamonds$table, 40 , xlab = "Table",  main = "Table distribution")
 
-hist(Diamonds$price, 40 , xlab = "Price ($)",  main = "Price distribution")
+hist(Diamonds$price, 40 , xlab = "Price (1000$)",  main = "Price distribution")
 
 hist(Diamonds$length, 40 , xlab = "Length (mm)",  main = "Length distribution")
 
@@ -345,7 +345,7 @@ abline(a=0,b=0,lwd=1.5,col="red")
 
 ###### Test sui residui ######
 shapiro.test(lm_model_1$residuals[1:5000])
-bptest(lm_fit)
+bptest(lm_model_1)
 
 ##### Model with interaction terms #####
 lm_model_2 = lm(price ~ . + (length:width:depth) , data = Diamonds,
@@ -424,6 +424,8 @@ library(leaps)
 model_bwd <- regsubsets(price ~ .+ (length:width:depth), data = Diamonds[train,], 
                          nvmax = 24)
 
+summary(model_bwd)
+
 names(summary(model_bwd)) #tutte le statistiche fornite
 
 ##Test RMSE Validation approach
@@ -456,6 +458,7 @@ val_RMSE #Test RMSE per tutti i modelli calcolati
 
 #We find that the best model is the one that contains  variables.
 min_RMSE = which.min(val_RMSE)
+min_RMSE
 coef(model_bwd , min_RMSE)
 #Nel miglior modello sono stati eliminati 3 regressori dal totale:
 #Sono state eliminate table,depth_percentage e length
@@ -522,7 +525,7 @@ cv_ridge_out <- cv.glmnet(x[train , ], y[train], alpha = 0,
                           nfolds = 10)
 plot(cv_ridge_out)
 bestlam_ridge <- cv_ridge_out$lambda.min
-bestlam_ridge #0.001 quindi bassa penalizzazione 
+bestlam_ridge  
 # (idealmente il modello non ne metterebbe nessuna probabilmente)
 
 ### Test RMSE ###
@@ -536,8 +539,6 @@ coef(ridge_model_2)
 fitt_value_ridge <- predict(ridge_model_2,newx = x[-train,])
 test_RMSE_ridge = sqrt(mean((y[-train] - fitt_value_ridge)^2))
 test_RMSE_ridge
-#Il modello è migliorata di pochissimo rispetto al miglior modello lineare,
-#quasi uguale
 
 
 ################################################################################
@@ -694,6 +695,7 @@ yhat_tree_1 <- predict(tree_model_1 , newdata = Diamonds[-train,]) #predizioni
 residuals_tree_1 <- Diamonds$price[-train] - yhat_tree_1
 plot(yhat_tree_1 ,Diamonds$price[-train]) #Previsioni vs dati reali
 tree_model_1_RMSE = sqrt(mean((residuals_tree_1)^2)) #Test RMSE
+tree_model_1_RMSE
 
 ####### Pruning ######
 
@@ -751,6 +753,7 @@ yhat_bag_1 <- predict(bag_model_1 , newdata = Diamonds[-train , ])
 plot(yhat_bag_1 ,Diamonds$price[-train]) #Fiited value vs real value
 plot(yhat_bag_1 ,yhat_bag_1 - Diamonds$price[-train]) #Fiited value vs Residuals
 bag_RMSE=sqrt(mean((yhat_bag_1 - Diamonds$price[-train])^2)) #Test RMSE
+bag_RMSE
 
 ################################################################################
 ############################### Random Forest
@@ -769,7 +772,8 @@ importance(rf_model_1)
 
 yhat_rf <- predict(rf_model_1 , newdata = Diamonds[-train , ])
 plot(yhat_rf ,price_test)
-mean((yhat_rf - price_test)^2) #Test MSE 
+rf_RMSE = sqrt(mean((yhat_rf - Diamonds$price[-train])^2)) #Test RMSE
+rf_RMSE
 
 #### Confronto Bagging e Random Forest ####
 plot(rf_model_1,type = 'b',col="green",pch = "+")
