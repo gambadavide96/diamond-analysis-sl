@@ -28,7 +28,7 @@ Diamonds <- Diamonds[indexes,]
 ################################################################################
 ######### Setting Dataset 
 ################################################################################
-Diamonds <- read.table("diamonds.csv", header = TRUE, 
+Diamonds <- read.table("diamonds_clean.csv", header = TRUE, 
                        sep = ",",
                        quote = "\"",
                        fileEncoding = "UTF-8")
@@ -46,9 +46,35 @@ Diamonds$clarity <- factor(Diamonds$clarity,
 # no nan colums
 colSums(is.na(Diamonds))
 
+#Modify dataset
+Diamonds <- subset(Diamonds, price >= 2000 & price <= 8000)
+Diamonds$price <- Diamonds$price / 1000
+write.csv(Diamonds, "Diamonds_clean.csv", row.names = FALSE)
 
 View(Diamonds)
 summary(Diamonds)
+
+################################################################################
+######### Outliers 
+################################################################################
+
+detect_outlier <- function(x) {
+  Quantile1 <- quantile(x, probs=.25)
+  Quantile3 <- quantile(x, probs=.75)
+  IQR = Quantile3 - Quantile1
+  x > Quantile3 + (IQR*1.5) | x < Quantile1 - (IQR*1.5)
+}
+
+remove_outlier <- function(dataframe,columns=names(dataframe)) {
+  for (col in columns) {
+    dataframe <- dataframe[!detect_outlier(dataframe[[col]]), ]
+  }
+  print("Remove outliers")
+  print(dataframe)
+}
+
+Diamonds <- remove_outlier(Diamonds, c('carat', 'depth_percentage', 'table', 'price',
+                                       "length", 'width', "depth"))
 
 ################################################################################
 ######### Histograms 
@@ -89,27 +115,6 @@ hist(Diamonds$width, 50 , xlab = "Width (mm)",  main = "Width distribution")
 
 hist(Diamonds$depth, 50 , xlab = "Depth (mm)",  main = "Depth distribution")
 
-################################################################################
-######### Outliers 
-################################################################################
-
-detect_outlier <- function(x) {
-  Quantile1 <- quantile(x, probs=.25)
-  Quantile3 <- quantile(x, probs=.75)
-  IQR = Quantile3 - Quantile1
-  x > Quantile3 + (IQR*1.5) | x < Quantile1 - (IQR*1.5)
-}
-
-remove_outlier <- function(dataframe,columns=names(dataframe)) {
-  for (col in columns) {
-    dataframe <- dataframe[!detect_outlier(dataframe[[col]]), ]
-  }
-  print("Remove outliers")
-  print(dataframe)
-}
-
-Diamonds <- remove_outlier(Diamonds, c('carat', 'depth_percentage', 'table', 'price',
-                                       "length", 'width', "depth"))
 
 ################################################################################
 ######### Mean e Std dataset variable
@@ -284,9 +289,17 @@ lm_test_RMSE_1
 
 
 ###### Analisi dei Residui ######
-par(mfrow = c(1,1))
+par(mfrow = c(2,2))
 #Grafici diagnostici
 plot(lm_model_1)
+
+par(mfrow = c(1,1))
+
+
+# frequenza dei residui
+hist(lm_model_1$residuals,60,
+     xlab = "Residuals",
+     main = "Empirical residual distribution")
 
 # frequenza dei residui studentizzati
 hist(rstudent(lm_model_1),60,
@@ -298,7 +311,7 @@ plot(lm_model_1$fitted.values,lm_model_1$residuals,
      xlab = "Fitted values",
      ylab = "Residuals",
      main = "Fitted values vs Residuals",
-     cex = 1.5, col = "black")
+     cex = 1, col = "black")
 abline(a=0,b=0,lwd=1.5,col="red")
 
 #Questo grafico viene utilizzato per valutare se esiste una relazione sistematica
@@ -359,6 +372,11 @@ plot(lm_model_2)
 
 par(mfrow = c(1,1))
 
+# frequenza dei residui 
+hist(lm_model_2$residuals,60,
+     xlab = "Residuals",
+     main = "Empirical residual distribution")
+
 # frequenza dei residui studentizzati
 hist(rstudent(lm_model_2),60,
      xlab = "Studentized residuals",
@@ -369,7 +387,7 @@ plot(lm_model_2$fitted.values,lm_model_2$residuals,
      xlab = "Fitted values",
      ylab = "Residuals",
      main = "Fitted values vs Residuals",
-     cex = 1.5, col = "black")
+     cex = 1, col = "black")
 abline(a=0,b=0,lwd=1.5,col="red")
 
 #Fitted Value vs Studentized Residuals
@@ -390,10 +408,10 @@ abline(a=0,b=0,lwd=1.5,col="red")
 #rispetto alla larghezza o alla lunghezza da sole.
 
 ## Anova test per confrontare i due modelli di regressione lineare creati ##
-anova(lm_model_1,lm_model_2)
+anova(lm_model_1,lm_model_2, test='F')
 #The anova() function performs a hypothesis test comparing the two models. The null hypothesis 
 #is that the two models fit the data equally well, and the alternative hypothesis is that the full
-#model is superior. Here the F-statistic is 576 and the associated p-value is
+#model is superior. Here the F-statistic is 310 and the associated p-value is
 #virtually zero. This provides very clear evidence that the model containing
 #the interaction term is better
 
@@ -419,22 +437,22 @@ x <- model.matrix ( price ~ . +(length : width : depth) ,
 y <- Diamonds$price
 
 #here we have chosen to implement
-#the function over a grid of values ranging from lamba = 10^5 to lambda = 10^-2, 
+#the function over a grid of values ranging from lamba = 10^7 to lambda = 10^-3, 
 #essentially covering the full range of scenarios from the null model containing
 #only the intercept, to the least squares fit
 #lambda_grid
-lambda_grid <- 10^seq(-3,7,length = 100); #generating 100 lambdas
+lambda_grid <- 10^seq(-3,4,length = 100); #generating 100 lambdas
 
 #Note that by default, the glmnet() function standardizes the
 #variables so that they are on the same scale. To turn off this default setting,
 #use the argument standardize = FALSE
 ridge_model_1 <- glmnet(x[train , ], y[train], alpha = 0, 
-                    lambda = lambda_grid, 
+                    lambda = NULL, 
                     standardize = TRUE)
 dim(coef(ridge_model_1))
 
 #Esempi di valori di lambda
-#Seleziono lambda 5 (grande) e calcolo l2 norm per lambda 5 (piccola)
+#Seleziono lambda 5 (grande) e calcolo l1 norm per lambda 5 (piccola)
 ridge_model_1$lambda[5]
 coef(ridge_model_1)[, 5]
 sqrt(sum(coef(ridge_model_1)[-1,5]^2)) ##l1 norm (escludendo intercetta)
@@ -452,7 +470,7 @@ plot(ridge_model_1, xvar = "norm",xlab="l1 norm",
 
 ####### Choosing the best lambda #######
 cv_ridge_out <- cv.glmnet(x[train , ], y[train], alpha = 0,
-                          lambda = lambda_grid,
+                          lambda = NULL,
                           nfolds = 10)
 plot(cv_ridge_out)
 bestlam_ridge <- cv_ridge_out$lambda.min
@@ -470,24 +488,24 @@ coef(ridge_model_2)
 fitt_value_ridge <- predict(ridge_model_2,newx = x[-train,])
 test_RMSE_ridge = sqrt(mean((y[-train] - fitt_value_ridge)^2))
 test_RMSE_ridge
-#Il modello è peggiorato un po rispetto a lm, probabilmente perchè tutte 
-#le variabili sono significative e danno un contributo nel predirre il prezzo
+#Il modello è migliorata di pochissimo rispetto al miglior modello lineare,
+#quasi uguale
 
 
 ################################################################################
 ############################### Lasso Regression
 ################################################################################
 
-lambda_grid <- 10^seq(-3,3,length = 100);
+lambda_grid <- 10^seq(-3,1,length = 100);
 
 
 lasso_model_1 <- glmnet(x[train , ], y[train], alpha = 1, 
-                        lambda = lambda_grid, 
+                        lambda = NULL, 
                         standardize = TRUE)
 dim(coef(lasso_model_1))
 
 #Esempi di valori di lambda
-#Seleziono lambda 5 (grande) e calcolo l2 norm per lambda 5 (piccola)
+#Seleziono lambda 5 (grande) e calcolo l1 norm per lambda 5 (piccola)
 lasso_model_1$lambda[5]
 coef(lasso_model_1)[, 5]
 sqrt(sum(coef(lasso_model_1)[-1,5]^2)) ##l1 norm (escludendo intercetta)
@@ -505,12 +523,12 @@ plot(lasso_model_1, xvar = "norm",xlab="l1 norm",
 
 ####### Choosing the best lambda #######
 cv_lasso_out <- cv.glmnet(x[train , ], y[train], alpha = 1,
-                          lambda = lambda_grid,
+                          lambda = NULL,
                           nfolds = 10)
 
 plot(cv_lasso_out)
 bestlam_lasso <- cv_lasso_out$lambda.min
-bestlam_lasso #0.001 come ridge
+bestlam_lasso #0.0001 
 
 ### Final model e Test RMSE ###
 lasso_model_2 <- glmnet(x[train , ], y[train], alpha = 1, 
@@ -523,6 +541,7 @@ coef(lasso_model_2)
 fitt_value_lasso <- predict(lasso_model_2,newx = x[-train,])
 test_RMSE_lasso = sqrt(mean((y[-train] - fitt_value_lasso)^2))
 test_RMSE_lasso
+
 #Risultati molto simili alla regressione ridge e lineare normale, siccome
 #il modello non penalizza i coefficienti grandi (necessari per spiegare il
 #prezzo)
@@ -535,17 +554,18 @@ set.seed(1) # seed for random number generator
 library(boot)
 
 kfold_RMSE <- rep (0 , 6)
+k_fit_i <- vector("list", 6)
 
 for(i in 1:6) {
-  k_fit <- glm(price ~ poly(length,i) + poly(width,i) + 
+  k_fit_i[[i]] <- glm(price ~ poly(length,i) + poly(width,i) + 
                poly(depth,i) + poly(table,i) + poly(depth_percentage,i)
-               +carat + color + cut + clarity
+               +poly(carat) + color + cut + clarity
                +poly(width*length*depth,i),
                data = Diamonds ) #creo il modello di ordine i
-  kfold_RMSE[ i ] <- sqrt(cv.glm( Diamonds , k_fit , K = 10)$delta[1]) #prendo il test RMSE per quel modello
+  kfold_RMSE[ i ] <- sqrt(cv.glm( Diamonds , k_fit_i[[i]] , K = 10)$delta[1]) #prendo il test RMSE per quel modello
 }
 
-summary(k_fit)
+summary(k_fit_i[[1]])
 kfold_RMSE
 
 plot(1:6,kfold_RMSE,type = "b",col = "blue",
@@ -557,7 +577,10 @@ plot(1:6,kfold_RMSE,type = "b",col = "blue",
 #quadratica, per le successive il miglioramento è costante ma ridotto fino al 
 #polinomio di grado 5 da li in poi il comportamento è imprevedibile
 
-
+#ANOVA Test
+anova(k_fit_i[[1]], k_fit_i[[2]], k_fit_i[[3]], k_fit_i[[4]], 
+      k_fit_i[[5]],k_fit_i[[6]],test = "F")
+#P value sempre significativo ma però a scendere diminuisce l'importanza
 
 
 ################################################################################
@@ -566,42 +589,39 @@ plot(1:6,kfold_RMSE,type = "b",col = "blue",
 
 library(gam)
 
-## carat -> natural spline
+## carat -> smooth spline
 ## cut -> step function
 ## color -> step function  
 ## clarity -> step function 
-## depth_percentage -> smoothing spline
+## depth_percentage -> smooth spline
 ## table -> smoothing spline 
-## lenght -> natural spline 
-## width -> natural spline 
-## depth -> natural spline
+## lenght -> smooth spline 
+## width -> smooth spline 
+## depth -> smooth spline
 ## price -> output variable
 
-####### GAM on full Dataset #######
-gam_model_1 <- gam(price~ ns(carat,4) + cut + color + clarity +
-                   s(depth_percentage,5) + s(table,5) + ns(length,4) + 
-                   ns(width,4) +ns(depth,4), data=Diamonds)
-
-plot(gam_model_1, se = TRUE)
-summary(gam_model_1)
-MSE_gam_model_1 <- mean((gam_model_1$residuals)^2) #MSE
-
-plot(gam_model_1$residuals)
-plot(Diamonds$price,gam_model_1$fitted.values)
-plot(gam_model_1$fitted.values,gam_model_1$residuals)
-plot(Diamonds$price,gam_model_1$residuals)
-
 ####### GAM train and test #######
-gam_model_train <- gam(price~ ns(carat,4) + cut + color + clarity +
-                     s(depth_percentage,5) + s(table,5) + ns(length,4) + 
-                     ns(width,4) +ns(depth,4), data=Diamonds[train, ])
+gam_model_1 <- gam(price~ s(carat,4) + cut + color + clarity +
+                     s(depth_percentage,5) + s(table,5) + s(length,4) + 
+                     s(width,4) + s(depth,4),data=Diamonds[train, ])
 
-plot(gam_model_train,se=TRUE)
+plot(gam_model_1,se=TRUE)
+summary(gam_model_1)
+#The “Anova for Parametric Effects” dimostra la significariva dei coefficienti
+#p-value piccolo = variabile significativa.
+#The “Anova for Nonparametric Effects” dimostra la se la relazione potrebbe
+#esere lineare o no, p-valkue piccolo= relazione non lineare .
 
-gam_pred_value <- predict(gam_model_train,newdata = Diamonds[-train,])
-plot(Diamonds$price[-train],gam_pred_value)
-plot(Diamonds$price[-train] - gam_pred_value)
-mean((Diamonds$price[-train] - gam_pred_value)^2)
+##### Analisi dei residui #####
+gam_pred_value <- predict(gam_model_1,newdata = Diamonds[-train,])
+gam_model_1_residuals = Diamonds$price[-train] - gam_pred_value
+#Fitted values vs Residuals
+plot(gam_pred_value,gam_model_1_residuals)
+#Residuals
+plot(gam_model_1_residuals)
+#Test RMSE
+gam_model_1_RMSE = sqrt(mean((Diamonds$price[-train] - gam_pred_value)^2))
+gam_model_1_RMSE #Miglioramento significativo
 
 ################################################################################
 ############################### Regression Trees
