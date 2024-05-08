@@ -6,7 +6,7 @@ graphics.off()
 ################################################################################
 ######### Modify Dataset 
 ################################################################################
-set.seed(24)
+set.seed(2)
 Diamonds <- read.table("diamonds.csv", header = TRUE, 
                        sep = ",",
                        quote = "\"",
@@ -101,19 +101,19 @@ barplot(table(Diamonds$clarity),
       ylab = "Frequency",
       main = "Clarity Distribution")
 
-hist(Diamonds$depth_percentage, 50 ,
+hist(Diamonds$depth_percentage, 40 ,
       xlab = "Depth Percentage", 
       main = "Depth Percentage distribution")
 
-hist(Diamonds$table, 40 , xlab = "Table",  main = "Table distribution")
+hist(Diamonds$table, 40 , xlab = "Table Percentage",  main = "Table distribution")
 
-hist(Diamonds$price, 40 , xlab = "Price (1000$)",  main = "Price distribution")
+hist(Diamonds$price, 40 , xlab = "Price (Thousands $)",  main = "Price distribution")
 
-hist(Diamonds$length, 40 , xlab = "Length (mm)",  main = "Length distribution")
+hist(Diamonds$length, 30 , xlab = "Length (mm)",  main = "Length distribution")
 
-hist(Diamonds$width, 50 , xlab = "Width (mm)",  main = "Width distribution")
+hist(Diamonds$width, 30 , xlab = "Width (mm)",  main = "Width distribution")
 
-hist(Diamonds$depth, 50 , xlab = "Depth (mm)",  main = "Depth distribution")
+hist(Diamonds$depth, 30 , xlab = "Depth (mm)",  main = "Depth distribution")
 
 
 ################################################################################
@@ -355,6 +355,9 @@ summary(lm_model_2)
 #confidence interval 95%
 confint(lm_model_2)
 
+#R^2
+summary(lm_model_2)$r.sq 
+
 #Train RMSE
 lm_train_RMSE_2 = sqrt(mean((lm_model_2$residuals)^2))
 lm_train_RMSE_2
@@ -411,7 +414,7 @@ abline(a=0,b=0,lwd=1.5,col="red")
 anova(lm_model_1,lm_model_2, test='F')
 #The anova() function performs a hypothesis test comparing the two models. The null hypothesis 
 #is that the two models fit the data equally well, and the alternative hypothesis is that the full
-#model is superior. Here the F-statistic is 310 and the associated p-value is
+#model is superior. Here the F-statistic is 213 and the associated p-value is
 #virtually zero. This provides very clear evidence that the model containing
 #the interaction term is better
 
