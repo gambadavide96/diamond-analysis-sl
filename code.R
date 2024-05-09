@@ -314,6 +314,14 @@ plot(lm_model_1$fitted.values,lm_model_1$residuals,
      cex = 1, col = "black")
 abline(a=0,b=0,lwd=1.5,col="red")
 
+#Predicted values vs Residuals
+plot(y_hat_lm,(y_hat_lm - Diamonds$price[-train]),
+     xlab = "Predicted values",
+     ylab = "Residuals",
+     main = "Predicted values vs Residuals",
+     cex = 1, col = "black")
+abline(a=0,b=0,lwd=1.5,col="red")
+
 #Questo grafico viene utilizzato per valutare se esiste una relazione sistematica
 #tra i valori predetti e i residui.  In particolare, si cerca di verificare se 
 #i residui mostrano una distribuzione casuale intorno allo zero al variare 
@@ -462,6 +470,8 @@ val_RMSE #Test RMSE per tutti i modelli calcolati
 #We find that the best model is the one that contains  variables.
 min_RMSE = which.min(val_RMSE)
 min_RMSE
+val_RMSE[min_RMSE]
+RMSE_subselection <- val_RMSE[min_RMSE]
 coef(model_bwd , min_RMSE)
 #Nel miglior modello sono stati eliminati 3 regressori dal totale:
 #Sono state eliminate table,depth_percentage e length
@@ -476,8 +486,7 @@ points(max_r2, summary(model_bwd)$rsq[max_r2], col = "red", cex = 2, pch = 20)
 #Modello con test RMSE più basso
 plot(val_RMSE,xlab = "N° regressor",ylab = " Test RMSE")
 points(min_RMSE, val_RMSE[min_RMSE], col = "blue", cex = 2, pch = 20)
-
-
+legend("topright", legend = "Min Test RMSE", col = "blue", pch = 20)
 
 ################################################################################
 ############################### Ridge Regression
@@ -517,10 +526,8 @@ coef(ridge_model_1)[, 95]
 sqrt(sum(coef(ridge_model_1)[-1,95]^2)) #l1 norm (escludendo intercetta)
 
 ### Andamento dei coefficienti al variare di lambda e l1 norm ###
-plot(ridge_model_1, xvar = "lambda",xlab="Log(λ)",
-     main="Coefficients vs Log(λ) ")
-plot(ridge_model_1, xvar = "norm",xlab="l1 norm",
-     main="Coefficients vs l1 norm")
+plot(ridge_model_1, xvar = "lambda",xlab="Log(λ)")
+plot(ridge_model_1, xvar = "norm",xlab="l1 norm")
 
 ####### Choosing the best lambda #######
 cv_ridge_out <- cv.glmnet(x[train , ], y[train], alpha = 0,
@@ -568,10 +575,8 @@ coef(lasso_model_1)[, 95]
 sqrt(sum(coef(lasso_model_1)[-1,95]^2)) #l1 norm (escludendo intercetta)
 
 ### Andamento dei coefficienti al variare di lambda e l1 norm ###
-plot(lasso_model_1, xvar = "lambda",xlab="Log(λ)",
-     main="Coefficients vs Log(λ) ")
-plot(lasso_model_1, xvar = "norm",xlab="l1 norm",
-     main="Coefficients vs l1 norm") 
+plot(lasso_model_1, xvar = "lambda",xlab="Log(λ)")
+plot(lasso_model_1, xvar = "norm",xlab="l1 norm") 
 
 ####### Choosing the best lambda #######
 cv_lasso_out <- cv.glmnet(x[train , ], y[train], alpha = 1,
@@ -601,14 +606,12 @@ test_RMSE_lasso
 ################################################################################
 ############################### Polynomials functions + K-fold Cross Validation; k = 10
 ################################################################################
-
-set.seed(1) # seed for random number generator
 library(boot)
 
-kfold_RMSE <- rep (0 , 6)
-k_fit_i <- vector("list", 6)
+kfold_RMSE <- rep (0 , 8)
+k_fit_i <- vector("list", 8)
 
-for(i in 1:6) {
+for(i in 1:8) {
   k_fit_i[[i]] <- glm(price ~ poly(length,i) + poly(width,i) + 
                poly(depth,i) + poly(table,i) + poly(depth_percentage,i)
                +poly(carat,i) + color + cut + clarity
@@ -619,10 +622,12 @@ for(i in 1:6) {
 summary(k_fit_i[[1]])
 kfold_RMSE
 
-plot(1:6,kfold_RMSE,type = "b",col = "blue",
+plot(1:8,kfold_RMSE,type = "b",col = "blue",
      ylab = "CV error",
      xlab = "Flexibility (poly degree)",
      main = "Test error estimation")
+
+best_RMSE_poly <- kfold_RMSE[8]
 
 #Si nota come ci sia un netto miglioramento passando dalla funzione lineare 
 #quadratica, per le successive il miglioramento è costante ma ridotto fino al 
@@ -630,7 +635,7 @@ plot(1:6,kfold_RMSE,type = "b",col = "blue",
 
 #ANOVA Test
 anova(k_fit_i[[1]], k_fit_i[[2]], k_fit_i[[3]], k_fit_i[[4]], 
-      k_fit_i[[5]],k_fit_i[[6]],test = "F")
+      k_fit_i[[5]],k_fit_i[[6]],k_fit_i[[7]],k_fit_i[[8]],test = "F")
 #P value sempre significativo ma però a scendere diminuisce l'importanza
 
 
@@ -656,6 +661,8 @@ gam_model_1 <- gam(price~ s(carat,4) + cut + color + clarity +
                      s(depth_percentage,5) + s(table,5) + s(length,4) + 
                      s(width,4) + s(depth,4),data=Diamonds[train, ])
 
+
+par(mfrow = c(1,1))
 plot(gam_model_1,se=TRUE)
 summary(gam_model_1)
 #The “Anova for Parametric Effects” dimostra la significariva dei coefficienti
@@ -666,8 +673,12 @@ summary(gam_model_1)
 ##### Analisi dei residui #####
 gam_pred_value <- predict(gam_model_1,newdata = Diamonds[-train,])
 gam_model_1_residuals = Diamonds$price[-train] - gam_pred_value
-#Fitted values vs Residuals
-plot(gam_pred_value,gam_model_1_residuals)
+#Test Predicted values vs Residuals
+plot(gam_pred_value,gam_model_1_residuals,xlab = "Predicted values",
+ylab = "Residuals",
+main = "Predicted values vs Residuals",
+cex = 1, col = "black")
+abline(a=0,b=0,lwd=1.5,col="red")
 #Residuals
 plot(gam_model_1_residuals)
 #Test RMSE
@@ -680,7 +691,6 @@ gam_model_1_RMSE #Miglioramento significativo
 library(tree)
 
 ####### Tre on train dataset ######
-set.seed(1)
 tree_model_1 <- tree(price ~ ., data = Diamonds, subset = train)
 summary(tree_model_1)
 plot(tree_model_1)
@@ -738,7 +748,6 @@ prune_model_RMSE = sqrt(mean((yhat_prune - price_test)^2)) #Test RMSE
 ################################################################################
 
 library(randomForest)
-set.seed(1)
 
 #### Bagging ####
 bag_model_1 <- randomForest(price ~ ., data = Diamonds , subset = train, 
@@ -748,13 +757,18 @@ bag_model_1 <- randomForest(price ~ ., data = Diamonds , subset = train,
                             ntree=100)
 bag_model_1
 summary(bag_model_1)
-plot(bag_model_1)
+plot(bag_model_1,main = "Error vs Number of Trees")
 importance(bag_model_1)
 #Questo restituirà un elenco delle variabili ordinate per importanza nel modello 
 
 yhat_bag_1 <- predict(bag_model_1 , newdata = Diamonds[-train , ])
 plot(yhat_bag_1 ,Diamonds$price[-train]) #Fiited value vs real value
-plot(yhat_bag_1 ,yhat_bag_1 - Diamonds$price[-train]) #Fiited value vs Residuals
+plot(yhat_bag_1 ,yhat_bag_1 - Diamonds$price[-train],
+     xlab = "Predicted values",
+     ylab = "Residuals",
+     main = "Predicted values vs Residuals",
+     cex = 1, col = "black")
+abline(a=0,b=0,lwd=1.5,col="red")
 bag_RMSE=sqrt(mean((yhat_bag_1 - Diamonds$price[-train])^2)) #Test RMSE
 bag_RMSE
 
@@ -778,12 +792,14 @@ plot(yhat_rf ,price_test)
 rf_RMSE = sqrt(mean((yhat_rf - Diamonds$price[-train])^2)) #Test RMSE
 rf_RMSE
 
-#### Confronto Bagging e Random Forest ####
-plot(rf_model_1,type = 'b',col="green",pch = "+")
-par(new=TRUE) #per sovrapporre grafico
-plot(bag_model_1,type = 'b',col="red",pch='o')
+#### Confronto MSE Bagging e Random Forest ####
+plot(rf_model_1,type = 'b',col="green",pch = "+",
+     main = "Random Forest vs Bagging")
+plot(bag_model_1,type = 'b',col="red",pch='o',add= TRUE)
 legend("topright", legend = c("Random Forest", "Bagging"),
        col = c("green", "red"), pch = c("+", "o"))
+
+
 
 
 ################################################################################
@@ -791,7 +807,6 @@ legend("topright", legend = c("Random Forest", "Bagging"),
 ################################################################################
 
 library(gbm)
-set.seed(1)
 
 #### Test MSE ####
 
@@ -816,6 +831,13 @@ yhat_boost_1 <- predict(boost_model_1 , newdata = Diamonds[-train , ],
 boost_RMSE_1 <- sqrt(mean((yhat_boost_1 - Diamonds$price[-train])^2))
 boost_RMSE_1
 
+plot(yhat_boost_1 ,yhat_boost_1 - Diamonds$price[-train],
+     xlab = "Predicted values",
+     ylab = "Residuals",
+     main = "Predicted values vs Residuals",
+     cex = 1, col = "black")
+abline(a=0,b=0,lwd=1.5,col="red")
+
 ##If we want to, we can perform boosting with a different
 #value of the shrinkage parameter lambda in (8.10). The default value is 0.001,
 #but this is easily modified. Here we take lambda = 0.2.
@@ -838,8 +860,31 @@ boost_RMSE_2
 #In media i valori predetti dal modello sono deviati di circa 379 dollari 
 #rispetto ai valori osservati.
 
+plot(yhat_boost_2 ,yhat_boost_2 - Diamonds$price[-train],
+     xlab = "Predicted values",
+     ylab = "Residuals",
+     main = "Predicted values vs Residuals",
+     cex = 1, col = "black")
+abline(a=0,b=0,lwd=1.5,col="red")
 
 
+################################################################################
+############################### Confronto
+################################################################################
+
+models <- c("Tree","Ridge","LM 1","Lasso","LM 2",
+            "BSS","GAM","Poly","Bagging","Boosting")
+errors <- c(tree_model_1_RMSE,test_RMSE_ridge,lm_test_RMSE_1,test_RMSE_lasso,
+            lm_test_RMSE_2,RMSE_subselection,
+            gam_model_1_RMSE,best_RMSE_poly,
+            bag_RMSE,boost_RMSE_2)
+
+plot(1:length(models),errors, type = "b", col = "blue",
+     ylab = "Test RMSE",
+     xlab = "Models",
+     main = "Test RMSE comparison",
+     xaxt = "n")
+axis(side = 1, at = 1:length(models), labels = models, las = 1)
 
 
 
