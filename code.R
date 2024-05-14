@@ -616,12 +616,10 @@ fit_carat_2 <- lm(price ~ poly(carat , 2), data = Diamonds)
 fit_carat_3 <- lm(price ~ poly(carat , 3), data = Diamonds)
 fit_carat_4 <- lm(price ~ poly(carat , 4), data = Diamonds)
 fit_carat_5 <- lm(price ~ poly(carat , 5), data = Diamonds)
-fit_carat_6 <- lm(price ~ poly(carat , 6), data = Diamonds)
-fit_carat_7 <- lm(price ~ poly(carat , 7), data = Diamonds)
 
-anova(fit_carat_1,fit_carat_2,fit_carat_3,fit_carat_4,fit_carat_5,
-      fit_carat_6,fit_carat_7)
-##Scelgo polinomio ordine 6
+
+anova(fit_carat_1,fit_carat_2,fit_carat_3,fit_carat_4,fit_carat_5)
+##Scelgo polinomio ordine 5
 
 
 #Definisco i valori su cui fare la previsione
@@ -629,13 +627,13 @@ carat_lims <- range(Diamonds$carat)
 carat_grid <- seq(from = carat_lims[1], to = carat_lims[2],by=0.01)
 
 #Calcolo previsioni
-preds_carat <- predict(fit_carat_6,newdata = list(carat = carat_grid) ,se=TRUE)
+preds_carat <- predict(fit_carat_5,newdata = list(carat = carat_grid) ,se=TRUE)
 
 #Grafico
 plot(Diamonds$carat, Diamonds$price, 
      main = "Carat vs Price", 
      xlab = "Carat", 
-     ylab = "Price ($)")
+     ylab = "Price (1000$)")
 lines(carat_grid, preds_carat$fit, lwd = 2, col = "blue")
 
 #################################  Length #######################################
@@ -660,7 +658,7 @@ preds_length <- predict(fit_length_5,newdata = list(length = length_grid) ,se=TR
 plot(Diamonds$length, Diamonds$price, 
      main = "Length vs Price", 
      xlab = "Lenght (mm)", 
-     ylab = "Price ($)")
+     ylab = "Price (1000$)")
 lines(length_grid, preds_length$fit, lwd = 2, col = "blue")
 
 #################################  Width #######################################
@@ -686,18 +684,35 @@ preds_width <- predict(fit_width_5,newdata = list(width = width_grid) ,se=TRUE)
 plot(Diamonds$width, Diamonds$price, 
      main = "Width vs Price", 
      xlab = "Width (mm)", 
-     ylab = "Price ($)")
+     ylab = "Price (1000$)")
 lines(width_grid, preds_width$fit, lwd = 2, col = "blue")
 
 #################################  Depth #######################################
 
+#Regressioni polinomiali
+fit_depth_1 <- lm(price ~ poly(depth, 1), data = Diamonds)
+fit_depth_2 <- lm(price ~ poly(depth, 2), data = Diamonds)
+fit_depth_3 <- lm(price ~ poly(depth, 3), data = Diamonds)
+fit_depth_4 <- lm(price ~ poly(depth, 4), data = Diamonds)
+fit_depth_5 <- lm(price ~ poly(depth, 5), data = Diamonds)
 
-summary(lm(Diamonds$price ~ Diamonds$depth, data = Diamonds))
+
+anova(fit_depth_1,fit_depth_2,fit_depth_3,fit_depth_4,fit_depth_5)
+##Scelgo polinomio ordine 5
+
+#Definisco i valori su cui fare la previsione
+depth_lims <- range(Diamonds$depth)
+depth_grid <- seq(from = depth_lims[1], to = depth_lims[2],by=0.01)
+
+#Calcolo previsioni
+preds_depth <- predict(fit_depth_5,newdata = list(depth = depth_grid) ,se=TRUE)
+
+
 plot(Diamonds$depth, Diamonds$price, 
      main = "Depth vs Price", 
      xlab = "Depth (mm)", 
-     ylab = "Price ($)")
-abline(lm(Diamonds$price ~ Diamonds$depth, data = Diamonds), col = "red")
+     ylab = "Price (1000$)")
+lines(depth_grid, preds_depth$fit, lwd = 2, col = "blue")
 
 
 #################################  Table #######################################
@@ -724,15 +739,45 @@ preds_table <- predict(fit_table_7,newdata = list(table = table_grid) ,se=TRUE)
 plot(Diamonds$table, Diamonds$price, 
      main = "Table vs Price", 
      xlab = "Table", 
-     ylab = "Price ($)")
+     ylab = "Price (1000$)")
 lines(table_grid, preds_table$fit, lwd = 2, col = "blue")
 
-#################################  Depth % #######################################
+#################################  Depth % #####################################
+
+
+fit_depthP_1 <- lm(price ~ poly(depth_percentage , 1), data = Diamonds)
+fit_depthP_2 <- lm(price ~ poly(depth_percentage , 2), data = Diamonds)
+fit_depthP_3 <- lm(price ~ poly(depth_percentage , 3), data = Diamonds)
+fit_depthP_4 <- lm(price ~ poly(depth_percentage , 4), data = Diamonds)
+fit_depthP_5 <- lm(price ~ poly(depth_percentage , 5), data = Diamonds)
+
+
+anova(fit_depthP_1,fit_depthP_2,fit_depthP_3,fit_depthP_4,fit_depthP_5)
+##Scelgo polinomio ordine 3
+
+#Definisco i valori su cui fare la previsione
+depthP_lims <- range(Diamonds$depth_percentage)
+depthP_grid <- seq(from = depthP_lims[1], to = depthP_lims[2],by=0.01)
+
+#Calcolo previsioni
+preds_depthP <- predict(fit_depthP_3,newdata = list(depth_percentage = depthP_grid) ,se=TRUE)
 
 plot(Diamonds$depth_percentage, Diamonds$price, 
      main = "Depth percentage vs Price", 
      xlab = "Depth percentage", 
-     ylab = "Price ($)")
+     ylab = "Price (1000$)")
+lines(depthP_grid, preds_depthP$fit, lwd = 2, col = "blue")
+
+################################# Polynomial model ############################
+
+poly_model <- lm(price ~ poly(carat,5)+poly(length,5)+poly(width,5)+
+                    poly(depth,5)+poly(table,5)+poly(depth_percentage,5)
+                    +color+cut+clarity,data=Diamonds,subset = train)
+summary(poly_model)
+
+y_hat_poly = predict(poly_model,newdata = Diamonds[-train,])
+poly_test_RMSE = sqrt(mean((y_hat_poly - Diamonds$price[-train])^2))
+poly_test_RMSE
 
 
 ################################################################################
