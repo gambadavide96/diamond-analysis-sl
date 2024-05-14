@@ -607,6 +607,7 @@ test_RMSE_lasso
 ################################################################################
 ############################### Polynomials functions
 ################################################################################
+par(mfrow = c(2,2))
 
 #################################  Carat #######################################
 
@@ -631,9 +632,9 @@ preds_carat <- predict(fit_carat_5,newdata = list(carat = carat_grid) ,se=TRUE)
 
 #Grafico
 plot(Diamonds$carat, Diamonds$price, 
-     main = "Carat vs Price", 
+     main = "Poly(Carat,5) vs Price", 
      xlab = "Carat", 
-     ylab = "Price (1000$)")
+     ylab = "Price (Thousands $)")
 lines(carat_grid, preds_carat$fit, lwd = 2, col = "blue")
 
 #################################  Length #######################################
@@ -656,9 +657,9 @@ length_grid <- seq(from = length_lims[1], to = length_lims[2],by=0.01)
 preds_length <- predict(fit_length_5,newdata = list(length = length_grid) ,se=TRUE)
 
 plot(Diamonds$length, Diamonds$price, 
-     main = "Length vs Price", 
+     main = "Poly(Length,5) vs Price", 
      xlab = "Lenght (mm)", 
-     ylab = "Price (1000$)")
+     ylab = "Price (Thousands $)")
 lines(length_grid, preds_length$fit, lwd = 2, col = "blue")
 
 #################################  Width #######################################
@@ -682,9 +683,9 @@ preds_width <- predict(fit_width_5,newdata = list(width = width_grid) ,se=TRUE)
 
 
 plot(Diamonds$width, Diamonds$price, 
-     main = "Width vs Price", 
+     main = "Poly(Width,5) vs Price", 
      xlab = "Width (mm)", 
-     ylab = "Price (1000$)")
+     ylab = "Price (Thousands $)")
 lines(width_grid, preds_width$fit, lwd = 2, col = "blue")
 
 #################################  Depth #######################################
@@ -709,9 +710,9 @@ preds_depth <- predict(fit_depth_5,newdata = list(depth = depth_grid) ,se=TRUE)
 
 
 plot(Diamonds$depth, Diamonds$price, 
-     main = "Depth vs Price", 
+     main = "Poly(Depth,5) vs Price", 
      xlab = "Depth (mm)", 
-     ylab = "Price (1000$)")
+     ylab = "Price (Thousands $)")
 lines(depth_grid, preds_depth$fit, lwd = 2, col = "blue")
 
 
@@ -733,13 +734,13 @@ table_lims <- range(Diamonds$table)
 table_grid <- seq(from = table_lims[1], to = table_lims[2],by=0.01)
 
 #Calcolo previsioni
-preds_table <- predict(fit_table_7,newdata = list(table = table_grid) ,se=TRUE)
+preds_table <- predict(fit_table_4,newdata = list(table = table_grid) ,se=TRUE)
 
 #Grafico
 plot(Diamonds$table, Diamonds$price, 
-     main = "Table vs Price", 
+     main = "Poly(Table,4) vs Price", 
      xlab = "Table", 
-     ylab = "Price (1000$)")
+     ylab = "Price (Thousands $)")
 lines(table_grid, preds_table$fit, lwd = 2, col = "blue")
 
 #################################  Depth % #####################################
@@ -763,12 +764,14 @@ depthP_grid <- seq(from = depthP_lims[1], to = depthP_lims[2],by=0.01)
 preds_depthP <- predict(fit_depthP_3,newdata = list(depth_percentage = depthP_grid) ,se=TRUE)
 
 plot(Diamonds$depth_percentage, Diamonds$price, 
-     main = "Depth percentage vs Price", 
+     main = "Poly(Depth%,3) vs Price", 
      xlab = "Depth percentage", 
-     ylab = "Price (1000$)")
+     ylab = "Price (Thousands $)")
 lines(depthP_grid, preds_depthP$fit, lwd = 2, col = "blue")
 
 ################################# Polynomial model ############################
+par(mfrow = c(1,1))
+
 
 poly_model <- lm(price ~ poly(carat,5)+poly(length,5)+poly(width,5)+
                     poly(depth,5)+poly(table,5)+poly(depth_percentage,5)
@@ -778,6 +781,22 @@ summary(poly_model)
 y_hat_poly = predict(poly_model,newdata = Diamonds[-train,])
 poly_test_RMSE = sqrt(mean((y_hat_poly - Diamonds$price[-train])^2))
 poly_test_RMSE
+
+#Fitted values vs Residuals
+plot(poly_model$fitted.values,poly_model$residuals,
+     xlab = "Fitted values",
+     ylab = "Residuals",
+     main = "Fitted values vs Residuals",
+     cex = 1, col = "black")
+abline(a=0,b=0,lwd=1.5,col="red")
+
+#Predicted values vs Residuals
+plot(y_hat_poly,(y_hat_poly - Diamonds$price[-train]),
+     xlab = "Predicted values",
+     ylab = "Residuals",
+     main = "Predicted values vs Residuals",
+     cex = 1, col = "black")
+abline(a=0,b=0,lwd=1.5,col="red")
 
 
 ################################################################################
@@ -1050,10 +1069,10 @@ abline(a=0,b=0,lwd=1.5,col="red")
 ################################################################################
 
 models <- c("Tree","Ridge","LM 1","Lasso","LM 2",
-            "BSS","GAM","Poly","Bagging","Boosting")
+            "BSS","Poly","GAM","Rand Forest","Bagging","Boosting")
 errors <- c(tree_model_1_RMSE,test_RMSE_ridge,lm_test_RMSE_1,test_RMSE_lasso,
             lm_test_RMSE_2,RMSE_subselection,
-            gam_model_1_RMSE,best_RMSE_poly,
+            poly_test_RMSE,gam_model_1_RMSE,rf_RMSE,
             bag_RMSE,boost_RMSE_2)
 
 plot(1:length(models),errors, type = "b", col = "blue",
