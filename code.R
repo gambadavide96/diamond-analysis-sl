@@ -1,12 +1,13 @@
 
 ###### clearing environment 
 rm(list = ls())
-graphics.off()
+graphics.off()cl
+set.seed(2)
 
 ################################################################################
 ######### Modify Dataset 
 ################################################################################
-set.seed(2)
+
 Diamonds <- read.table("diamonds.csv", header = TRUE, 
                        sep = ",",
                        quote = "\"",
@@ -16,6 +17,11 @@ colnames(Diamonds)[5] = "depth_percentage"
 colnames(Diamonds)[8] = "length"
 colnames(Diamonds)[9] = "width"
 colnames(Diamonds)[10] = "depth"
+
+#Modify dataset
+Diamonds <- subset(Diamonds, price >= 2000 & price <= 8000)
+Diamonds$price <- Diamonds$price / 1000
+write.csv(Diamonds, "Diamonds.csv", row.names = FALSE)
 
 ####shuffling####
 Diamonds <- Diamonds[sample(nrow(Diamonds)), ]
@@ -46,10 +52,8 @@ Diamonds$clarity <- factor(Diamonds$clarity,
 # no nan colums
 colSums(is.na(Diamonds))
 
-#Modify dataset
-Diamonds <- subset(Diamonds, price >= 2000 & price <= 8000)
-Diamonds$price <- Diamonds$price / 1000
-write.csv(Diamonds, "Diamonds.csv", row.names = FALSE)
+set.seed(2)
+
 
 View(Diamonds)
 summary(Diamonds)
@@ -1081,6 +1085,144 @@ plot(1:length(models),errors, type = "b", col = "blue",
      main = "Test RMSE comparison",
      xaxt = "n")
 axis(side = 1, at = 1:length(models), labels = models, las = 1)
+
+################################################################################
+############################### Classification
+################################################################################
+library(ROSE)
+
+#Setting dataset:
+Diamonds$quality <- ifelse(Diamonds$cut %in% c("Very Good","Premium", "Ideal") & 
+                             Diamonds$color %in% c("G","F","E", "D") & 
+                             Diamonds$clarity %in% c("VS1","VVS2","VVS1", "IF"), 
+                            "High", 
+                            "Low")
+
+Diamonds$quality <- factor(Diamonds$quality,levels=c("Low","High"))
+
+View(Diamonds)
+
+#classe sbilanciata
+table(Diamonds$quality)
+
+##Undersampling
+new_n <- 3017 / 0.5
+
+undersampling_result <- ovun.sample(quality ~ carat + depth_percentage + table
+                                    +length + width + depth+price,
+                                      data = Diamonds, 
+                                      method = "under",N = new_n)
+
+Diamonds2 <- undersampling_result$data
+View(Diamonds2)
+
+# Classi bilanciate
+table(Diamonds2$quality)
+
+#Divido il dataset in train e test
+train <- sample(nrow(Diamonds2),floor(nrow(Diamonds2)*0.7),replace = FALSE)
+
+################################################################################
+############################### Logistic Regression
+################################################################################
+
+contrasts(Diamonds2$quality) #il livello di riferimento è High
+
+log_reg <- glm(quality ~ ., data = Diamonds2 ,family = binomial , subset = train)
+log_reg
+summary(log_reg)
+#carat: coefficiente negativo, indica che grossi diamanti meno probabilità di alta qualità
+#price: coefficienti positivo, indica che diamanti costosi più probabilità di alta qualità
+
+#calcolo probabilità che diamante di high su dataset test
+log_probs <- predict(log_reg , Diamonds2[-train,],type = "response")
+
+#Creo un vettore di previsioni tutte a low
+log_pred <- rep("Low", nrow(Diamonds2[-train,]))
+#Setto ad High solo le previsioni maggiori della prob 0.5
+log_pred[log_probs > .5] = "High"
+
+#Confusion matrix
+table(log_pred,Diamonds2$quality[-train])
+#Test error
+mean(log_pred != Diamonds2$quality[-train])
+#Correctness
+mean(log_pred == Diamonds2$quality[-train])
+
+################################################################################
+############################### LDA
+################################################################################
+library(MASS)
+
+lda_fit <- lda( quality ~ . ,data = Diamonds2, subset = train)
+lda_fit
+
+lda_predict <- predict(lda_fit, newdata = Diamonds2[-train,])
+
+table(lda_predict$class,Diamonds2$quality[-train])
+
+#Test error
+mean(lda_predict$class != Diamonds2$quality[-train])
+#Peggio rispetto a Logistic Regression
+
+
+################################################################################
+############################### QDA
+################################################################################
+
+qda_fit <- qda( quality ~ . ,data = Diamonds2, subset = train)
+qda_fit
+
+qda_predict <- predict(qda_fit, newdata = Diamonds2[-train,])
+
+table(qda_predict$class,Diamonds2$quality[-train])
+
+mean(qda_predict$class != Diamonds2$quality[-train])
+#Peggio rispetto a LDA
+
+################################################################################
+############################### KNN
+################################################################################
+library(class)
+
+#Etichette corrette di training
+label_train <- Diamonds2$quality[train]
+
+
+knn_fit <- knn(train=Diamonds2[train,1:7],test = Diamonds2[-train,1:7],
+               cl=label_train, k=3)
+
+#confusion matrix
+table(knn_fit,Diamonds2$quality[-train])
+#Test Error del 14%
+mean(knn_fit != Diamonds2$quality[-train])
+
+#Implementare cross-validazion per scegliere il miglior k ?
+
+
+################################################################################
+############################### SVM
+################################################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
