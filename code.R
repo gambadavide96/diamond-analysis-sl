@@ -439,8 +439,8 @@ anova(lm_model_1,lm_model_2, test='F')
 ################################################################################
 library(leaps)
 ###### Best subset selection ######
-model_bwd <- regsubsets(price ~ .+ (length:width:depth), data = Diamonds[train,], 
-                         nvmax = 24)
+model_bwd <- regsubsets(price ~ .+ (length*width*depth), data = Diamonds[train,], 
+                         nvmax = 27)
 
 summary(model_bwd)
 
@@ -453,15 +453,15 @@ names(summary(model_bwd)) #tutte le statistiche fornite
 #data.
 #The model.matrix() function is used in many regression packages for building 
 #an “X” matrix from data.
-test_mat <- model.matrix(price ~ . + (length:width:depth), 
+test_mat <- model.matrix(price ~ . + (length*width*depth), 
                          data = Diamonds[-train , ])
 
 #Now we run a loop, and for each size i, we
 #extract the coefficients from regfit.best for the best model of that size,
 #multiply them into the appropriate columns of the test model matrix to
 #form the predictions, and compute the test MSE.
-val_RMSE <- rep(NA, 24)
-for (i in 1:24) {
+val_RMSE <- rep(NA, 27)
+for (i in 1:27) {
   coefi <- coef(model_bwd , id = i)
   pred <- test_mat[, names(coefi)] %*% coefi #prodotto matrici coefficienti per la previsione di price
   val_RMSE[i] <- sqrt(mean((Diamonds$price[-train] - pred)^2))
@@ -480,8 +480,8 @@ min_RMSE
 val_RMSE[min_RMSE]
 RMSE_subselection <- val_RMSE[min_RMSE]
 coef(model_bwd , min_RMSE)
-#Nel miglior modello sono stati eliminati 3 regressori dal totale:
-#Sono state eliminate table,depth_percentage e length
+#Nel miglior modello sono stati eliminati 2 regressori dal totale:
+#Sono state eliminate table e depth_percentage
 #Coerente con la regressione lineare, ha eliminato i regressori con il
 #p-value più alto
 
@@ -502,7 +502,7 @@ library(glmnet)
 
 #preparing data
 #creating regressor (automatic handle categorical variables in dummy variables)
-x <- model.matrix ( price ~ . +(length : width : depth) , 
+x <- model.matrix ( price ~ . +(length * width * depth) , 
                     Diamonds )[,-1]  #tutte le righe - la prima colonna (intercetta)
 y <- Diamonds$price
 
@@ -663,7 +663,7 @@ length_grid <- seq(from = length_lims[1], to = length_lims[2],by=0.01)
 preds_length <- predict(fit_length_5,newdata = list(length = length_grid) ,se=TRUE)
 
 plot(Diamonds$length, Diamonds$price, 
-     main = "Poly(Length,5) vs Price", 
+     main = "Poly(Length,3) vs Price", 
      xlab = "Lenght (mm)", 
      ylab = "Price (Thousands $)")
 lines(length_grid, preds_length$fit, lwd = 2, col = "blue")
@@ -689,7 +689,7 @@ preds_width <- predict(fit_width_5,newdata = list(width = width_grid) ,se=TRUE)
 
 
 plot(Diamonds$width, Diamonds$price, 
-     main = "Poly(Width,5) vs Price", 
+     main = "Poly(Width,3) vs Price", 
      xlab = "Width (mm)", 
      ylab = "Price (Thousands $)")
 lines(width_grid, preds_width$fit, lwd = 2, col = "blue")
@@ -733,18 +733,18 @@ fit_table_5 <- lm(price ~ poly(table , 5), data = Diamonds)
 
 
 anova(fit_table_1,fit_table_2,fit_table_3,fit_table_4,fit_table_5)
-##Scelgo polinomio ordine 4
+##Scelgo polinomio ordine 2
 
 #Definisco i valori su cui fare la previsione
 table_lims <- range(Diamonds$table)
 table_grid <- seq(from = table_lims[1], to = table_lims[2],by=0.01)
 
 #Calcolo previsioni
-preds_table <- predict(fit_table_4,newdata = list(table = table_grid) ,se=TRUE)
+preds_table <- predict(fit_table_2,newdata = list(table = table_grid) ,se=TRUE)
 
 #Grafico
 plot(Diamonds$table, Diamonds$price, 
-     main = "Poly(Table,4) vs Price", 
+     main = "Poly(Table,2) vs Price", 
      xlab = "Table", 
      ylab = "Price (Thousands $)")
 lines(table_grid, preds_table$fit, lwd = 2, col = "blue")
@@ -760,17 +760,17 @@ fit_depthP_5 <- lm(price ~ poly(depth_percentage , 5), data = Diamonds)
 
 
 anova(fit_depthP_1,fit_depthP_2,fit_depthP_3,fit_depthP_4,fit_depthP_5)
-##Scelgo polinomio ordine 3
+##Scelgo polinomio ordine 2
 
 #Definisco i valori su cui fare la previsione
 depthP_lims <- range(Diamonds$depth_percentage)
 depthP_grid <- seq(from = depthP_lims[1], to = depthP_lims[2],by=0.01)
 
 #Calcolo previsioni
-preds_depthP <- predict(fit_depthP_3,newdata = list(depth_percentage = depthP_grid) ,se=TRUE)
+preds_depthP <- predict(fit_depthP_2,newdata = list(depth_percentage = depthP_grid) ,se=TRUE)
 
 plot(Diamonds$depth_percentage, Diamonds$price, 
-     main = "Poly(Depth%,3) vs Price", 
+     main = "Poly(Depth%,2) vs Price", 
      xlab = "Depth percentage", 
      ylab = "Price (Thousands $)")
 lines(depthP_grid, preds_depthP$fit, lwd = 2, col = "blue")
@@ -780,7 +780,7 @@ par(mfrow = c(1,1))
 
 
 poly_model <- lm(price ~ poly(carat,5)+poly(length,5)+poly(width,5)+
-                    poly(depth,5)+poly(table,5)+poly(depth_percentage,5)
+                    poly(depth,5)+poly(table,2)+poly(depth_percentage,2)
                     +color+cut+clarity,data=Diamonds,subset = train)
 summary(poly_model)
 
@@ -860,7 +860,7 @@ library(gam)
 
 ####### GAM train and test #######
 gam_model_1 <- gam(price~ s(carat,4) + cut + color + clarity +
-                     s(depth_percentage,5) + s(table,5) + s(length,4) + 
+                     s(depth_percentage,5) + s(table,2) + s(length,4) + 
                      s(width,4) + s(depth,4),data=Diamonds[train, ])
 
 
@@ -1152,7 +1152,7 @@ log_pred[log_probs > .5] = "High"
 table(log_pred,Diamonds2$quality[-train])
 #Test error
 mean(log_pred != Diamonds2$quality[-train])
-#Accuracy
+#Accuracy 88%
 mean(log_pred == Diamonds2$quality[-train])
 
 ################################################################################
@@ -1170,7 +1170,7 @@ table(lda_predict$class,Diamonds2$quality[-train])
 #Test error
 mean(lda_predict$class != Diamonds2$quality[-train])
 
-#Accuracy
+#Accuracy 87%
 mean(lda_predict$class == Diamonds2$quality[-train])
 
 #Peggio rispetto a Logistic Regression
@@ -1189,7 +1189,7 @@ table(qda_predict$class,Diamonds2$quality[-train])
 
 mean(qda_predict$class != Diamonds2$quality[-train])
 
-#Accuracy
+#Accuracy 84%
 mean(qda_predict$class == Diamonds2$quality[-train])
 
 #Peggio rispetto a LDA
@@ -1234,7 +1234,7 @@ knn_fit_best <- knn(train=Diamonds2[train,1:7],test = Diamonds2[-train,1:7],
 table(knn_fit_best,Diamonds2$quality[-train])
 #Test Error del 14%
 mean(knn_fit_best != Diamonds2$quality[-train])
-#accuracy
+#accuracy 85%
 mean(knn_fit_best == Diamonds2$quality[-train])
 
 
@@ -1242,6 +1242,85 @@ mean(knn_fit_best == Diamonds2$quality[-train])
 ################################################################################
 ############################### SVMs
 ################################################################################
+
+########################## SVM con kernel linear ###############################
+svm_linear <- svm(quality ~ ., data = Diamonds2 ,subset = train , 
+              kernel = "linear",
+              cost = 10, scale = TRUE)
+summary(svm_linear)
+
+#Cerco il miglior cost con crossvalidazione
+tune_linear <- tune(svm ,quality ~ ., data = Diamonds2[train,],
+                  kernel = "linear",
+                  ranges = list(cost = c(0.001, 0.01, 0.1, 1, 5, 10, 100)))
+
+summary(tune_linear)
+
+best_linear <- tune_linear$best.model
+summary(best_linear)
+##best_linear <- svm_linear <- svm(quality ~ ., data = Diamonds2 ,subset = train , 
+                                 #kernel = "linear",
+                                 #cost = 1, scale = TRUE)
+summary(best_linear)
+
+#Previsioni sul dataset di test
+svm_linear_pred <- predict(best_linear , Diamonds2[-train,])
+#Confusion matrix
+table(predict = svm_linear_pred , truth = Diamonds2$quality[-train])
+#Test Error
+mean(svm_linear_pred != Diamonds2$quality[-train])
+#Accuracy 88.62%
+mean(svm_linear_pred == Diamonds2$quality[-train])
+
+########################## SVM con kernel radial ###############################
+
+#scelgo i miglipri cost e gamma con crossvalidazione
+tune_radial <- tune(svm ,quality ~ ., data = Diamonds2[train,],
+                    kernel = "radial",
+                    ranges = list(
+                    cost = c(0.001, 0.01, 0.1, 1, 5, 10, 100),
+                    gamma = c(0.5, 1, 2, 3, 4)))
+
+summary(tune_radial)
+
+#best parameters: cost 1 , gamma 0.5
+best_radial <- tune_radial$best.model
+summary(best_radial)
+
+#Previsioni sul dataset di test
+svm_radial_pred <- predict(best_radial , Diamonds2[-train,])
+#Confusion matrix
+table(predict = svm_radial_pred , truth = Diamonds2$quality[-train])
+#Test Error
+mean(svm_radial_pred != Diamonds2$quality[-train])
+#accuracy 88.9%
+mean(svm_radial_pred == Diamonds2$quality[-train])
+#più o meno uguale a linear
+
+
+########################## SVM con kernel polynomial ###########################
+
+best_poly <- svm_linear <- svm(quality ~ ., data = Diamonds2 ,subset = train , 
+                                 kernel = "polynomial",
+                                 cost = 1, gamma=0.5,
+                                degree=3,scale = TRUE)
+summary(best_poly)
+
+#Previsioni sul dataset di test
+svm_poly_pred <- predict(best_poly , Diamonds2[-train,])
+#Confusion matrix
+table(predict = svm_poly_pred , truth = Diamonds2$quality[-train])
+#Test Error
+mean(svm_poly_pred != Diamonds2$quality[-train])
+#accuracy 86%
+mean(svm_poly_pred == Diamonds2$quality[-train])
+
+
+################################################################################
+###############################  SVMs con carat e price
+################################################################################
+
+################################### SVMS linear ################################
 
 #vettore per i colori:
 y <- ifelse(Diamonds2$quality == "High", 1, 0)
@@ -1260,38 +1339,12 @@ legend(
 )
 
 
-########################## SVM con kernel linear ###############################
-svm_linear <- svm(quality ~ ., data = Diamonds2 ,subset = train , 
-              kernel = "linear",
-              cost = 10, scale = TRUE)
-summary(svm_linear)
-
-#Cerco il miglior cost con crossvalidazione
-tune_linear <- tune(svm ,quality ~ ., data = Diamonds2[train,],
-                  kernel = "linear",
-                  ranges = list(cost = c(0.001, 0.01, 0.1, 1, 5, 10, 100)))
-
-summary(tune_linear)
-
-##best_linear <- tune_linear$best.model
-best_linear <- svm_linear <- svm(quality ~ ., data = Diamonds2 ,subset = train , 
-                                 kernel = "linear",
-                                 cost = 1, scale = TRUE)
-summary(best_linear)
-
-#Previsioni sul dataset di test
-svm_linear_pred <- predict(best_linear , Diamonds2[-train,])
-#Confusion matrix
-table(predict = svm_linear_pred , truth = Diamonds2$quality[-train])
-#Test Error
-mean(svm_linear_pred != Diamonds2$quality[-train])
-
-#################### PROVA SVM con solo carat e price ######################
-svm_linear2 <- svm(quality ~ carat+price, data = Diamonds2 ,subset = train , 
-                  kernel = "linear",
-                  cost = 1, scale = TRUE)
+svm_linear2 <- svm(quality ~ carat + price, data = Diamonds2 ,subset = train , 
+                   kernel = "linear",
+                   cost = 1, scale = TRUE)
 summary(svm_linear2)
-plot(svm_linear2 , Diamonds2[train,],price~carat)
+
+plot(svm_linear2, Diamonds2[train,],price~carat)
 
 #Previsioni sul dataset di test
 svm_linear_pred2 <- predict(svm_linear2 , Diamonds2[-train,])
@@ -1299,54 +1352,51 @@ svm_linear_pred2 <- predict(svm_linear2 , Diamonds2[-train,])
 table(predict = svm_linear_pred2 , truth = Diamonds2$quality[-train])
 #Test Error
 mean(svm_linear_pred2 != Diamonds2$quality[-train])
+#Accuracy: 88.68%
+mean(svm_linear_pred2 == Diamonds2$quality[-train])
 #Funziona meglio usando anche solo 2 regressori! (test error più basso)
 
 
-########################## SVM con kernel radial ###############################
+################################ SVM polynomial ###############################
 
-#scelgo i miglipri cost e gamma con crossvalidazione
-tune_radial <- tune(svm ,quality ~ ., data = Diamonds2[train,],
-                    kernel = "radial",
-                    ranges = list(
-                    cost = c(0.001, 0.01, 0.1, 1, 5, 10, 100),
-                    gamma = c(0.5, 1, 2, 3, 4)))
+svm_poly2 <- svm(quality ~ carat + price, data = Diamonds2 ,subset = train , 
+                   kernel = "polynomial",
+                   cost = 1,
+                   degree = 3,
+                   gamma=0.5,
+                   scale = TRUE)
+summary(svm_poly2)
 
-summary(tune_radial)
-#best parameters: cost 5, gamma 0.5
-
-best_radial <- tune_radial$best.model
-summary(best_radial)
+plot(svm_poly2, Diamonds2[train,],price~carat)
 
 #Previsioni sul dataset di test
-svm_radial_pred <- predict(best_radial , Diamonds2[-train,])
+svm_poly_pred2 <- predict(svm_poly2 , Diamonds2[-train,])
 #Confusion matrix
-table(predict = svm_radial_pred , truth = Diamonds2$quality[-train])
+table(predict = svm_poly_pred2 , truth = Diamonds2$quality[-train])
 #Test Error
-mean(svm_radial_pred != Diamonds2$quality[-train])
-#più o meno uguale a linear
+mean(svm_poly_pred2 != Diamonds2$quality[-train])
+#Accuracy: 79.23%
+mean(svm_poly_pred2 == Diamonds2$quality[-train])
 
+################################ SVM radial ###############################
 
-########################## SVM con kernel polynomial ###########################
+svm_radial2 <- svm(quality ~ carat + price, data = Diamonds2 ,subset = train , 
+                 kernel = "radial",
+                 cost = 1,
+                 gamma=0.5,
+                 scale = TRUE)
+summary(svm_radial2)
 
-best_poly <- svm_linear <- svm(quality ~ ., data = Diamonds2 ,subset = train , 
-                                 kernel = "polynomial",
-                                 cost = 1, gamma=10,
-                                degree=1,scale = TRUE)
-summary(best_poly)
-#miglior risultato con degree = 1 e cost = 1
+plot(svm_radial2, Diamonds2[train,],price~carat)
 
 #Previsioni sul dataset di test
-svm_poly_pred <- predict(best_poly , Diamonds2[-train,])
+svm_radial_pred2 <- predict(svm_radial2 , Diamonds2[-train,])
 #Confusion matrix
-table(predict = svm_poly_pred , truth = Diamonds2$quality[-train])
+table(predict = svm_radial_pred2 , truth = Diamonds2$quality[-train])
 #Test Error
-mean(svm_poly_pred != Diamonds2$quality[-train])
-
-
-
-
-
-
+mean(svm_radial_pred2 != Diamonds2$quality[-train])
+#Accuracy: 88.95%
+mean(svm_radial_pred2 == Diamonds2$quality[-train])
 
 
 
