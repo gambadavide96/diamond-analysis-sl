@@ -1,35 +1,8 @@
 
 ###### clearing environment 
 rm(list = ls())
-graphics.off()cl
+graphics.off()
 set.seed(2)
-
-################################################################################
-######### Modify Dataset 
-################################################################################
-
-Diamonds <- read.table("diamonds.csv", header = TRUE, 
-                       sep = ",",
-                       quote = "\"",
-                       fileEncoding = "UTF-8")
-Diamonds <- subset(Diamonds , select = - X)
-colnames(Diamonds)[5] = "depth_percentage"
-colnames(Diamonds)[8] = "length"
-colnames(Diamonds)[9] = "width"
-colnames(Diamonds)[10] = "depth"
-
-#Modify dataset
-Diamonds <- subset(Diamonds, price >= 2000 & price <= 8000)
-Diamonds$price <- Diamonds$price / 1000
-write.csv(Diamonds, "Diamonds.csv", row.names = FALSE)
-
-####shuffling####
-Diamonds <- Diamonds[sample(nrow(Diamonds)), ]
-
-####shuffling####
-indexes <- sample(seq_len(nrow(Diamonds)))
-Diamonds <- Diamonds[indexes,]
-####
 
 ################################################################################
 ######### Setting Dataset 
@@ -260,7 +233,7 @@ train <- sample(nrow(Diamonds),floor(nrow(Diamonds)*0.7),replace = FALSE)
 price_test <- Diamonds$price[-train]
 
 ################################################################################
-######### Linear Regression
+######### First Linear Regression
 ################################################################################
 library(lmtest)
 library(car)
@@ -274,6 +247,40 @@ contrasts(Diamonds$clarity)
 lm_model_1 = lm(price ~ . , data = Diamonds,subset = train)
 summary(lm_model_1)
 vif(lm_model_1)
+
+################################################################################
+######### Modify Dataset
+################################################################################
+
+## Forte multicollinearità, in particolare tra length,width e depth
+## creo la variabile volume e la sostituisco a x,y,z
+Diamonds$volume <- Diamonds$length * Diamonds$width * Diamonds$depth
+# Rimuovere le variabili originali
+Diamonds <- Diamonds[, !names(Diamonds) %in% c("length", "width","depth")]
+View(Diamonds)
+
+plot(Diamonds$volume, Diamonds$price, 
+     main = "Volume vs Price", 
+     xlab = "Volume (mm^3)", 
+     ylab = "Price ($)")
+
+hist(Diamonds$volume, 40 ,
+     xlab = "Volume (mm^3)", 
+     main = "Volume distribution")
+
+#nuova matrice di correlazione
+cor_scores <- cor(subset(Diamonds , select = -c(color,clarity,cut)))
+corrplot(cor_scores,method = "number")
+
+################################################################################
+######### Linear Regression
+################################################################################
+
+lm_model_1 = lm(price ~ . , data = Diamonds,subset = train)
+summary(lm_model_1)
+vif(lm_model_1)
+
+
 #confidence interval 95%
 confint(lm_model_1)
 #R^2
@@ -363,10 +370,10 @@ shapiro.test(lm_model_1$residuals[sample(1:20000, 5000, replace = FALSE)])
 bptest(lm_model_1)
 
 ##### Model with interaction terms #####
-lm_model_2 = lm(price ~ . + (length*width*depth) , data = Diamonds,
+lm_model_2 = lm(price ~ . + (length:width:depth) , data = Diamonds,
                 subset = train)
 summary(lm_model_2)
-vif(lm_model_2,type = "predictor")
+
 #confidence interval 95%
 confint(lm_model_2)
 
@@ -860,8 +867,8 @@ library(gam)
 
 ####### GAM train and test #######
 gam_model_1 <- gam(price~ s(carat,4) + cut + color + clarity +
-                     s(depth_percentage,5) + s(table,5) + s(length,4) + 
-                     s(width,4) + s(depth,4),data=Diamonds[train, ])
+                     s(depth_percentage,5) + s(table,4) + s(volume,4),
+                     data=Diamonds[train, ])
 
 
 par(mfrow = c(1,1))
@@ -1114,7 +1121,7 @@ table(Diamonds$quality)
 new_n <- 3017 / 0.5
 
 undersampling_result <- ovun.sample(quality ~ carat + depth_percentage + table
-                                    +length + width + depth+price,
+                                    + volume + price,
                                       data = Diamonds, 
                                       method = "under",N = new_n)
 
@@ -1152,7 +1159,7 @@ log_pred[log_probs > .5] = "High"
 table(log_pred,Diamonds2$quality[-train])
 #Test error
 mean(log_pred != Diamonds2$quality[-train])
-#Accuracy
+#Correctness
 mean(log_pred == Diamonds2$quality[-train])
 
 ################################################################################
@@ -1169,10 +1176,6 @@ table(lda_predict$class,Diamonds2$quality[-train])
 
 #Test error
 mean(lda_predict$class != Diamonds2$quality[-train])
-
-#Accuracy
-mean(lda_predict$class == Diamonds2$quality[-train])
-
 #Peggio rispetto a Logistic Regression
 
 
@@ -1188,55 +1191,26 @@ qda_predict <- predict(qda_fit, newdata = Diamonds2[-train,])
 table(qda_predict$class,Diamonds2$quality[-train])
 
 mean(qda_predict$class != Diamonds2$quality[-train])
-
-#Accuracy
-mean(qda_predict$class == Diamonds2$quality[-train])
-
 #Peggio rispetto a LDA
 
 ################################################################################
 ############################### KNN
 ################################################################################
 library(class)
-library(caret)
 
 #Etichette corrette di training
 label_train <- Diamonds2$quality[train]
 
 
-knn_fit <- knn(train=Diamonds2[train,1:7],test = Diamonds2[-train,1:7],
+knn_fit <- knn(train=Diamonds2[train,1:5],test = Diamonds2[-train,1:5],
                cl=label_train, k=3)
 
 #confusion matrix
 table(knn_fit,Diamonds2$quality[-train])
 #Test Error del 14%
 mean(knn_fit != Diamonds2$quality[-train])
-#accuracy
-mean(knn_fit == Diamonds2$quality[-train])
 
-#Selecting best k with cross-validation
-train_control <- trainControl(method = "cv", number = 10) # 10-fold cross-validation
-
-# Eseguire il tuning
-tune_knn <- train(quality ~ ., data = Diamonds2[train,],
-                  method = "knn",
-                  tuneGrid = expand.grid(k = c(1,2,3,5,10,15,20)),
-                  trControl = train_control)
-
-# Stampare i risultati del tuning
-print(tune_knn)
-# best k = 5
-
-knn_fit_best <- knn(train=Diamonds2[train,1:7],test = Diamonds2[-train,1:7],
-               cl=label_train, k=5)
-
-#confusion matrix
-table(knn_fit_best,Diamonds2$quality[-train])
-#Test Error del 14%
-mean(knn_fit_best != Diamonds2$quality[-train])
-#accuracy
-mean(knn_fit_best == Diamonds2$quality[-train])
-
+#Implementare cross-validazion per scegliere il miglior k ?
 
 
 ################################################################################
