@@ -1211,7 +1211,7 @@ knn_fit <- knn(train=Diamonds2[train,1:7],test = Diamonds2[-train,1:7],
 table(knn_fit,Diamonds2$quality[-train])
 #Test Error del 14%
 mean(knn_fit != Diamonds2$quality[-train])
-#accuracy
+#accuracy 85.91%
 mean(knn_fit == Diamonds2$quality[-train])
 
 #Selecting best k with cross-validation
@@ -1258,7 +1258,7 @@ summary(tune_linear)
 
 best_linear <- tune_linear$best.model
 summary(best_linear)
-##best_linear <- svm_linear <- svm(quality ~ ., data = Diamonds2 ,subset = train , 
+#best_linear <- svm_linear <- svm(quality ~ ., data = Diamonds2 ,subset = train , 
                                  #kernel = "linear",
                                  #cost = 1, scale = TRUE)
 summary(best_linear)
@@ -1269,7 +1269,7 @@ svm_linear_pred <- predict(best_linear , Diamonds2[-train,])
 table(predict = svm_linear_pred , truth = Diamonds2$quality[-train])
 #Test Error
 mean(svm_linear_pred != Diamonds2$quality[-train])
-#Accuracy 88.62%
+#Accuracy 89.50%
 mean(svm_linear_pred == Diamonds2$quality[-train])
 
 ########################## SVM con kernel radial ###############################
@@ -1302,7 +1302,7 @@ mean(svm_radial_pred == Diamonds2$quality[-train])
 
 best_poly <- svm_linear <- svm(quality ~ ., data = Diamonds2 ,subset = train , 
                                  kernel = "polynomial",
-                                 cost = 1, gamma=0.5,
+                                 cost = 5, gamma=0.5,
                                 degree=3,scale = TRUE)
 summary(best_poly)
 
