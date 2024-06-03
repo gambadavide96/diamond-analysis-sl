@@ -1042,7 +1042,7 @@ abline(a=0,b=0,lwd=1.5,col="red")
 
 ##If we want to, we can perform boosting with a different
 #value of the shrinkage parameter lambda in (8.10). The default value is 0.001,
-#but this is easily modified. Here we take lambda = 0.2.
+#but this is easily modified. Here we take lambda = 0.02.
 boost_model_2 <- gbm(price ~ ., data = Diamonds[train , ],
                      distribution = "gaussian", 
                      n.trees = 5000,
