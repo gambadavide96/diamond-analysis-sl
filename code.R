@@ -860,7 +860,7 @@ library(gam)
 
 ####### GAM train and test #######
 gam_model_1 <- gam(price~ s(carat,4) + cut + color + clarity +
-                     s(depth_percentage,5) + s(table,2) + s(length,4) + 
+                     s(depth_percentage,5) + s(table,3) + s(length,4) + 
                      s(width,4) + s(depth,4),data=Diamonds[train, ])
 
 
@@ -1254,6 +1254,12 @@ tune_linear <- tune(svm ,quality ~ ., data = Diamonds2[train,],
                   kernel = "linear",
                   ranges = list(cost = c(0.001, 0.01, 0.1, 1, 5, 10, 100)))
 
+#A cost argument allows us to specify the cost of a violation to the margin.
+#When the cost argument is small, then the margins will be wide and many support 
+#vectors will be on the margin or will violate the margin. When the cost argument
+#is large, then the margins will be narrow and there will be few support vectors 
+#on the margin or violating the margin.
+
 summary(tune_linear)
 
 best_linear <- tune_linear$best.model
@@ -1283,7 +1289,7 @@ tune_radial <- tune(svm ,quality ~ ., data = Diamonds2[train,],
 
 summary(tune_radial)
 
-#best parameters: cost 1 , gamma 0.5
+#best parameters: cost 5 , gamma 0.5
 best_radial <- tune_radial$best.model
 summary(best_radial)
 
@@ -1341,7 +1347,7 @@ legend(
 
 svm_linear2 <- svm(quality ~ carat + price, data = Diamonds2 ,subset = train , 
                    kernel = "linear",
-                   cost = 1, scale = TRUE)
+                   cost = 5, scale = TRUE)
 summary(svm_linear2)
 
 plot(svm_linear2, Diamonds2[train,],price~carat)
@@ -1361,7 +1367,7 @@ mean(svm_linear_pred2 == Diamonds2$quality[-train])
 
 svm_poly2 <- svm(quality ~ carat + price, data = Diamonds2 ,subset = train , 
                    kernel = "polynomial",
-                   cost = 1,
+                   cost = 5,
                    degree = 3,
                    gamma=0.5,
                    scale = TRUE)
@@ -1382,7 +1388,7 @@ mean(svm_poly_pred2 == Diamonds2$quality[-train])
 
 svm_radial2 <- svm(quality ~ carat + price, data = Diamonds2 ,subset = train , 
                  kernel = "radial",
-                 cost = 1,
+                 cost = 5,
                  gamma=0.5,
                  scale = TRUE)
 summary(svm_radial2)
