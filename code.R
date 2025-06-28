@@ -1075,18 +1075,18 @@ abline(a=0,b=0,lwd=1.5,col="red")
 ################################################################################
 
 models <- c("Tree","Ridge","LM 1","Lasso","LM 2",
-            "BSS","Poly","GAM","Rand Forest","Bagging","Boosting")
+            "BSS","Poly","GAM","R. Forest","Bagging","Boosting")
 errors <- c(tree_model_1_RMSE,test_RMSE_ridge,lm_test_RMSE_1,test_RMSE_lasso,
             lm_test_RMSE_2,RMSE_subselection,
             poly_test_RMSE,gam_model_1_RMSE,rf_RMSE,
             bag_RMSE,boost_RMSE_2)
 
-plot(1:length(models),errors, type = "b", col = "blue",
-     ylab = "Test RMSE",
-     xlab = "Models",
-     main = "Test RMSE comparison",
-     xaxt = "n")
-axis(side = 1, at = 1:length(models), labels = models, las = 1)
+barplot(height = errors, 
+        names.arg = models, 
+        col = "blue",
+        ylab = "Test RMSE",
+        main = "Test RMSE comparison",
+        las = 2)  # las = 2 per ruotare le etichette dell'asse x verticalmente
 
 ################################################################################
 ############################### Classification
